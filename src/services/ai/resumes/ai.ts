@@ -13,6 +13,10 @@ export async function analyzeResumeForJob({
     "title" | "experienceLevel" | "description"
   >
 }) {
+  if (!google) {
+    throw new Error("GEMINI_API_KEY is not configured")
+  }
+
   return streamObject({
     model: google("gemini-2.5-flash"),
     schema: aiAnalyzeSchema,

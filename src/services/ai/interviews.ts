@@ -45,6 +45,10 @@ export async function generateAiInterviewFeedback({
   const maxAttempts = 4
   let lastError: unknown = null
 
+  if (!google) {
+    throw new Error("GEMINI_API_KEY is not configured")
+  }
+
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
   const { text } = await generateText({

@@ -1,6 +1,9 @@
 import { env } from "@/data/env/server"
 import { createGoogleGenerativeAI } from "@ai-sdk/google"
 
-export const google = createGoogleGenerativeAI({
-  apiKey: env.GEMINI_API_KEY,
-})
+// Only create Google AI client if API key is available
+export const google = env.GEMINI_API_KEY 
+  ? createGoogleGenerativeAI({
+      apiKey: env.GEMINI_API_KEY,
+    })
+  : null

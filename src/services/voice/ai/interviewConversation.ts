@@ -37,6 +37,10 @@ export async function generateInterviewResponse({
     ]
   }
 
+  if (!google) {
+    throw new Error("GEMINI_API_KEY is not configured")
+  }
+
   const { text } = await generateText({
     model: google("gemini-2.5-flash"),
     messages: conversationHistory,

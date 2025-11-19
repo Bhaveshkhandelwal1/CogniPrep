@@ -27,6 +27,10 @@ export function generateAiQuestion({
       ] satisfies CoreMessage[]
   )
 
+  if (!google) {
+    throw new Error("GEMINI_API_KEY is not configured")
+  }
+
   return streamText({
     model: google("gemini-2.5-flash"),
     onFinish: ({ text }) => onFinish(text),
@@ -66,6 +70,10 @@ export function generateAiQuestionFeedback({
   question: string
   answer: string
 }) {
+  if (!google) {
+    throw new Error("GEMINI_API_KEY is not configured")
+  }
+
   return streamText({
     model: google("gemini-2.5-flash"),
     prompt: answer,
