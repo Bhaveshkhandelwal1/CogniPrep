@@ -6,42 +6,34 @@ function isClerkConfigured(): boolean {
 }
 
 export async function getCurrentUser({ allData = false } = {}) {
-  try {
-    // Always try to use Clerk's auth() - it should work if clerkMiddleware is present
-    // Even if keys are missing, auth() will return null userId
-    const { auth } = await import("@clerk/nextjs/server")
-    
-    try {
-      const { userId, redirectToSignIn } = await auth()
+  // If Clerk is not configured, don't call auth() at all - return null immediately
+  // This prevents the "can't detect clerkMiddleware" error
+  if (!isClerkConfigured()) {
+    return {
+      userId: null,
+      redirectToSignIn: async () => {
+        const { redirect } = await import("next/navigation")
+        return redirect("/sign-in")
+      },
+      user: undefined,
+    }
+  }
 
-      return {
-        userId: userId || null,
-        redirectToSignIn,
-        user: allData && userId != null ? await getUser(userId) : undefined,
-      }
-    } catch (authError: unknown) {
-      // If auth() fails (e.g., Clerk not properly initialized), return null user
-      const errorMessage = authError instanceof Error ? authError.message : String(authError)
-      
-      // Check if it's the specific error about clerkMiddleware
-      if (errorMessage.includes("clerkMiddleware") || errorMessage.includes("can't detect")) {
-        // Clerk middleware is not properly set up - return null user
-        return {
-          userId: null,
-          redirectToSignIn: async () => {
-            const { redirect } = await import("next/navigation")
-            return redirect("/sign-in")
-          },
-          user: undefined,
-        }
-      }
-      
-      // Re-throw other errors
-      throw authError
+  try {
+    // Only call auth() if Clerk is configured
+    const { auth } = await import("@clerk/nextjs/server")
+    const { userId, redirectToSignIn } = await auth()
+
+    return {
+      userId: userId || null,
+      redirectToSignIn,
+      user: allData && userId != null ? await getUser(userId) : undefined,
     }
   } catch (error) {
-    // If Clerk import or usage fails completely, return null user (graceful degradation)
-    console.error("Clerk authentication error:", error)
+    // If Clerk fails, return null user (graceful degradation)
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    console.error("Clerk authentication error:", errorMessage)
+    
     return {
       userId: null,
       redirectToSignIn: async () => {

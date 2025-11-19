@@ -7,9 +7,19 @@ type Permission =
   | "1_interview"
   | "5_questions"
 
+// Check if Clerk is configured
+function isClerkConfigured(): boolean {
+  return !!(process.env.CLERK_SECRET_KEY && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
+}
+
 export async function hasPermission(permission: Permission) {
+  // If Clerk is not configured, return false (no permissions)
+  if (!isClerkConfigured()) {
+    return false
+  }
+
   try {
-  const { has } = await auth()
+    const { has } = await auth()
     const result = await has({ feature: permission })
     
     // In development, log the permission check for debugging

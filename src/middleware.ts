@@ -58,7 +58,7 @@ const fallbackMiddleware: NextMiddleware = async (req) => {
 }
 
 // Create middleware - always use clerkMiddleware so Clerk can detect it
-// This allows auth() to work even if keys are missing (it will just return null)
+// This allows auth() to work when keys are present
 export default clerkMiddleware(async (auth, req) => {
   try {
     // Only run Arcjet protection if it's initialized
@@ -70,8 +70,8 @@ export default clerkMiddleware(async (auth, req) => {
       }
     }
 
-    // Only protect routes if Clerk is configured
-    // If Clerk is not configured, auth.protect() might fail, so we catch it
+    // Only protect routes if Clerk is properly configured
+    // If Clerk is not configured, auth.protect() will fail, so we skip it
     if (isClerkConfigured && !isPublicRoute(req)) {
       try {
         await auth.protect()
