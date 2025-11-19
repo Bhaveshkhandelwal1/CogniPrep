@@ -11,14 +11,21 @@ if (!process.env.DATABASE_URL) {
   if (DB_HOST && DB_USER && DB_PASSWORD && DB_PORT && DB_NAME) {
     process.env.DATABASE_URL = `mysql://${encodeURIComponent(DB_USER)}:${encodeURIComponent(DB_PASSWORD)}@${DB_HOST}:${DB_PORT}/${DB_NAME}`
   } else {
-    // Log missing variables for debugging
-    console.warn('Warning: DATABASE_URL not set and individual DB variables are missing:', {
-      hasHost: !!DB_HOST,
-      hasUser: !!DB_USER,
-      hasPassword: !!DB_PASSWORD,
-      hasPort: !!DB_PORT,
-      hasName: !!DB_NAME,
-    })
+    // Only log warning if not during build time
+    const isBuildTime = process.env.NEXT_PHASE === "phase-production-build" || 
+                         process.env.CI === "true" ||
+                         process.env.VERCEL === "1"
+    
+    if (!isBuildTime) {
+      // Log missing variables for debugging (only at runtime)
+      console.warn('Warning: DATABASE_URL not set and individual DB variables are missing:', {
+        hasHost: !!DB_HOST,
+        hasUser: !!DB_USER,
+        hasPassword: !!DB_PASSWORD,
+        hasPort: !!DB_PORT,
+        hasName: !!DB_NAME,
+      })
+    }
   }
 }
 
@@ -28,11 +35,17 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
+// Only create PrismaClient if DATABASE_URL is available (not during build)
+const shouldCreatePrisma = process.env.DATABASE_URL || 
+  (process.env.DB_HOST && process.env.DB_USER && process.env.DB_PASSWORD && process.env.DB_NAME)
+
 export const prisma =
   globalForPrisma.prisma ??
-  new PrismaClient({
-    log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
-  })
+  (shouldCreatePrisma 
+    ? new PrismaClient({
+        log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
+      })
+    : ({} as PrismaClient))
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma
 
