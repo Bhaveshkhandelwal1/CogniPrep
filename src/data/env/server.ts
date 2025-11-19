@@ -12,6 +12,7 @@ const shouldSkipValidation = isBuildTime || process.env.SKIP_ENV_VALIDATION === 
 
 export const env = createEnv({
   server: {
+    DATABASE_URL: z.string().min(1).optional(),
     DB_PASSWORD: z.string().min(1).optional(),
     DB_HOST: z.string().min(1).optional(),
     DB_PORT: z.string().min(1).optional(),
@@ -24,8 +25,15 @@ export const env = createEnv({
   },
   createFinalSchema: env => {
     return z.object(env).transform(val => {
-      const { DB_HOST, DB_NAME, DB_PASSWORD, DB_PORT, DB_USER, ...rest } = val
-      // Only create DATABASE_URL if all DB variables are present
+      const { DATABASE_URL, DB_HOST, DB_NAME, DB_PASSWORD, DB_PORT, DB_USER, ...rest } = val
+      // If DATABASE_URL is already provided, use it directly (prioritize it)
+      if (DATABASE_URL) {
+        return {
+          ...rest,
+          DATABASE_URL,
+        }
+      }
+      // Otherwise, construct DATABASE_URL from individual variables if all are present
       if (DB_HOST && DB_NAME && DB_PASSWORD && DB_PORT && DB_USER) {
         return {
           ...rest,

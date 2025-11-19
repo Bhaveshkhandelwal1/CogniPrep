@@ -22,16 +22,21 @@ if (fs.existsSync(envPath)) {
   });
 }
 
-const { DB_HOST, DB_USER, DB_PASSWORD, DB_PORT, DB_NAME } = process.env;
+// Prioritize DATABASE_URL if provided, otherwise construct from individual variables
+let DATABASE_URL = process.env.DATABASE_URL;
 
-if (!DB_HOST || !DB_USER || !DB_PASSWORD || !DB_PORT || !DB_NAME) {
-  console.error('Error: Missing required database environment variables');
-  console.error('Required: DB_HOST, DB_USER, DB_PASSWORD, DB_PORT, DB_NAME');
-  process.exit(1);
+if (!DATABASE_URL) {
+  const { DB_HOST, DB_USER, DB_PASSWORD, DB_PORT, DB_NAME } = process.env;
+
+  if (!DB_HOST || !DB_USER || !DB_PASSWORD || !DB_PORT || !DB_NAME) {
+    console.error('Error: Missing required database environment variables');
+    console.error('Either provide DATABASE_URL or all of: DB_HOST, DB_USER, DB_PASSWORD, DB_PORT, DB_NAME');
+    process.exit(1);
+  }
+
+  // Construct DATABASE_URL from individual variables
+  DATABASE_URL = `mysql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}`;
 }
-
-// Construct DATABASE_URL from individual variables
-const DATABASE_URL = `mysql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}`;
 
 // Set it in the environment
 process.env.DATABASE_URL = DATABASE_URL;

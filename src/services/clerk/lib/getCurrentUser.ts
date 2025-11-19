@@ -48,22 +48,27 @@ export async function getCurrentUser({ allData = false } = {}) {
 async function getUser(id: string) {
   // Don't use cache for user lookups to prevent stale data during onboarding
   // This ensures fresh data is always fetched from the database
-  // Check if database is configured
-  const hasDatabase = !!(process.env.DATABASE_URL || 
-    (process.env.DB_HOST && process.env.DB_USER && process.env.DB_PASSWORD && process.env.DB_NAME))
+  // Check if database is configured - prioritize DATABASE_URL
+  const hasDatabase = !!process.env.DATABASE_URL
   
   if (!hasDatabase) {
     return null
   }
 
   try {
-    // Check if prisma has the user property (it won't if DB is not configured)
-    if (!prisma || !('user' in prisma)) {
+    // Check if prisma is properly initialized and has the user property
+    // When DB is not configured, prisma might be an empty object {}
+    if (!prisma || typeof prisma !== 'object' || !('user' in prisma)) {
       return null
     }
     
+    // Check if prisma.user exists and is a function (Prisma model)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const prismaClient = prisma as any
+    if (!prismaClient.user || typeof prismaClient.user.findUnique !== 'function') {
+      return null
+    }
+    
     return await prismaClient.user.findUnique({
       where: { id },
     })

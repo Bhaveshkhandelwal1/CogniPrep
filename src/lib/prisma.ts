@@ -1,4 +1,4 @@
-// Construct DATABASE_URL from individual environment variables BEFORE importing PrismaClient
+// Prioritize DATABASE_URL if provided, otherwise construct from individual variables
 // This is critical because Prisma validates the schema when PrismaClient is imported
 // Next.js automatically loads .env files, but we need to ensure DATABASE_URL is set
 if (!process.env.DATABASE_URL) {
@@ -35,9 +35,9 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-// Only create PrismaClient if DATABASE_URL is available (not during build)
-const shouldCreatePrisma = process.env.DATABASE_URL || 
-  (process.env.DB_HOST && process.env.DB_USER && process.env.DB_PASSWORD && process.env.DB_NAME)
+// Only create PrismaClient if DATABASE_URL is available (prioritize DATABASE_URL)
+// DATABASE_URL takes precedence over individual variables
+const shouldCreatePrisma = !!process.env.DATABASE_URL
 
 export const prisma =
   globalForPrisma.prisma ??
