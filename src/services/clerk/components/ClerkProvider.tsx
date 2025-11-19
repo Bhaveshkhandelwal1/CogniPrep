@@ -2,20 +2,17 @@ import { ReactNode } from "react"
 import { ClerkProvider as OriginalClerkProvider } from "@clerk/nextjs"
 import { buttonVariants } from "@/components/ui/button"
 
-// Get publishable key, use placeholder during build if missing
-const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || "pk_test_placeholder"
-
 export function ClerkProvider({ children }: { children: ReactNode }) {
-  // During build, if key is missing, provide a placeholder to prevent errors
+  // Get publishable key, use placeholder during build if missing
+  // This allows static generation to complete even without the actual key
   const isBuildTime = process.env.NEXT_PHASE === "phase-production-build" || 
                        process.env.CI === "true" ||
                        process.env.VERCEL === "1"
   
-  if (isBuildTime && !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
-    // Return children without ClerkProvider during build if key is missing
-    // This allows static generation to complete
-    return <>{children}</>
-  }
+  // Use placeholder key during build if actual key is missing
+  // This allows ClerkProvider to render and SignInButton to work during static generation
+  const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || 
+    (isBuildTime ? "pk_test_placeholder_for_build" : "pk_test_placeholder")
 
   return (
     <OriginalClerkProvider
