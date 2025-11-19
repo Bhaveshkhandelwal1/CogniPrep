@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack -p 3000",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
+    "postinstall": "prisma generate",
     "db:push": "node scripts/prisma-with-env.js db push",
     "db:generate": "prisma generate",
     "db:migrate": "node scripts/prisma-with-env.js migrate dev",
