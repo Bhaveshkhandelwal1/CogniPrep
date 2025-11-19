@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getCurrentUser } from "@/services/clerk/lib/getCurrentUser"
-import { SignInButton } from "@clerk/nextjs"
+import { SignInButton } from "@/components/ClerkSignInButton"
 import {
   BookOpenCheckIcon,
   Brain,
@@ -40,9 +40,7 @@ function Navbar() {
           </Link>
           <Suspense
             fallback={
-              <SignInButton forceRedirectUrl="/app">
-                <Button variant="outline">Sign In</Button>
-              </SignInButton>
+              <SignInButton forceRedirectUrl="/app" />
             }
           >
             <NavButton />
@@ -57,11 +55,7 @@ async function NavButton() {
   const { userId } = await getCurrentUser()
 
   if (userId == null) {
-    return (
-      <SignInButton forceRedirectUrl="/app">
-        <Button variant="outline">Sign In</Button>
-      </SignInButton>
-    )
+    return <SignInButton forceRedirectUrl="/app" />
   }
 
   return (
