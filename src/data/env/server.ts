@@ -1,6 +1,11 @@
 import { createEnv } from "@t3-oss/env-nextjs"
 import z from "zod"
 
+// Skip validation during build time (when NEXT_PHASE is 'phase-production-build' or when CI)
+const isBuildTime = process.env.NEXT_PHASE === "phase-production-build" || 
+                     process.env.CI === "true" ||
+                     process.env.VERCEL === "1"
+
 export const env = createEnv({
   server: {
     DB_PASSWORD: z.string().min(1),
@@ -23,6 +28,6 @@ export const env = createEnv({
     })
   },
   emptyStringAsUndefined: true,
-  skipValidation: process.env.SKIP_ENV_VALIDATION === "true",
+  skipValidation: isBuildTime || process.env.SKIP_ENV_VALIDATION === "true",
   experimental__runtimeEnv: process.env,
 })
