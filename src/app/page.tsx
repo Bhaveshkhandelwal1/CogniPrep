@@ -14,6 +14,9 @@ import { Suspense } from "react"
 import { UserAvatar } from "@/features/users/components/UserAvatar"
 import { PricingTable } from "@/services/clerk/components/PricingTable"
 
+// Mark as dynamic since NavButton uses getCurrentUser() which calls auth() and uses headers()
+export const dynamic = 'force-dynamic'
+
 export default function LandingPage() {
   return (
     <div className="bg-gradient-to-b from-background to-muted/20">

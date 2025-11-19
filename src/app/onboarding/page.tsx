@@ -5,6 +5,9 @@ import { currentUser } from "@clerk/nextjs/server"
 import { upsertUser } from "@/features/users/db"
 import { revalidatePath } from "next/cache"
 
+// Mark as dynamic since we use getCurrentUser() which calls auth() and uses headers()
+export const dynamic = 'force-dynamic'
+
 export default async function OnboardingPage() {
   const { userId, user } = await getCurrentUser({ allData: true })
 
