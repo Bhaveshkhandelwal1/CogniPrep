@@ -5,27 +5,26 @@ import { buttonVariants } from "@/components/ui/button"
 export function ClerkProvider({ children }: { children: ReactNode }) {
   const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
   
-  // During build, if key is missing, skip ClerkProvider entirely
-  // Client components will handle the fallback
+  // During build, if key is missing, use a placeholder key
+  // This allows ClerkProvider to initialize without errors
   const isBuildTime = process.env.NEXT_PHASE === "phase-production-build" || 
                        process.env.CI === "true" ||
                        process.env.VERCEL === "1"
   
-  if (isBuildTime && !publishableKey) {
-    // Return children without ClerkProvider during build
-    // Client components will handle missing Clerk gracefully
-    return <>{children}</>
-  }
+  // Use placeholder key during build if real key is missing
+  // At runtime, if key is still missing, Clerk will handle it gracefully
+  const keyToUse = publishableKey || (isBuildTime ? "pk_test_placeholder_for_build" : undefined)
 
-  // At runtime, ClerkProvider is required
-  if (!publishableKey) {
+  // At runtime, if no key is provided, skip ClerkProvider
+  if (!isBuildTime && !publishableKey) {
     console.warn("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is missing. Clerk features will not work.")
     return <>{children}</>
   }
 
+  // Always render ClerkProvider (with placeholder during build if needed)
   return (
     <OriginalClerkProvider
-      publishableKey={publishableKey}
+      publishableKey={keyToUse}
       appearance={{
         cssLayerName: "vendor",
         variables: {
