@@ -10,6 +10,7 @@
     "db:push": "node scripts/prisma-with-env.js db push",
     "db:generate": "prisma generate",
     "db:migrate": "node scripts/prisma-with-env.js migrate dev",
+    "db:migrate:deploy": "node scripts/prisma-with-env.js migrate deploy",
     "db:studio": "node scripts/prisma-with-env.js studio"
   },
   "dependencies": {
