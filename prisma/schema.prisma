@@ -73,7 +73,6 @@ model Interview {
   id         String    @id @default(uuid())
   jobInfoId  String    @map("job_info_id")
   duration   String    @db.VarChar(255)
-  humeChatId String?   @map("hume_chat_id") @db.VarChar(255)
   messages   String?   @db.Text
   feedback   String?   @db.Text
   createdAt  DateTime  @default(now()) @map("created_at")
