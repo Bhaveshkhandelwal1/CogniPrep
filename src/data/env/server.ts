@@ -14,7 +14,7 @@ export const env = createEnv({
     DB_USER: z.string().min(1),
     DB_NAME: z.string().min(1),
     ARCJET_KEY: z.string().min(1).optional(),
-    CLERK_SECRET_KEY: z.string().min(1),
+    CLERK_SECRET_KEY: z.string().min(1).optional(),
     GEMINI_API_KEY: z.string().min(1),
     OPENAI_API_KEY: z.string().min(1).optional(),
   },
