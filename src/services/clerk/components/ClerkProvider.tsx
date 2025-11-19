@@ -1,30 +1,40 @@
-import { ReactNode } from "react"
+"use client"
+
+import { ReactNode, useEffect, useState } from "react"
 import { ClerkProvider as OriginalClerkProvider } from "@clerk/nextjs"
 import { buttonVariants } from "@/components/ui/button"
 
 export function ClerkProvider({ children }: { children: ReactNode }) {
-  const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
-  
-  // During build, if key is missing, use a placeholder key
-  // This allows ClerkProvider to initialize without errors
-  const isBuildTime = process.env.NEXT_PHASE === "phase-production-build" || 
-                       process.env.CI === "true" ||
-                       process.env.VERCEL === "1"
-  
-  // Use placeholder key during build if real key is missing
-  // At runtime, if key is still missing, Clerk will handle it gracefully
-  const keyToUse = publishableKey || (isBuildTime ? "pk_test_placeholder_for_build" : undefined)
+  const [publishableKey, setPublishableKey] = useState<string | undefined>(undefined)
+  const [isClient, setIsClient] = useState(false)
 
-  // At runtime, if no key is provided, skip ClerkProvider
-  if (!isBuildTime && !publishableKey) {
-    console.warn("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is missing. Clerk features will not work.")
+  useEffect(() => {
+    setIsClient(true)
+    // Get the key on the client side to avoid SSR issues
+    setPublishableKey(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
+  }, [])
+  
+  // Wait for client-side hydration before checking the key
+  if (!isClient) {
+    // During SSR/build, render children without ClerkProvider
     return <>{children}</>
   }
 
-  // Always render ClerkProvider (with placeholder during build if needed)
+  // If no publishable key is available, skip ClerkProvider entirely
+  // Clerk validates the key format, so we can't use a placeholder
+  // Client components will handle missing Clerk gracefully
+  if (!publishableKey || publishableKey === "pk_test_placeholder_for_build") {
+    // At runtime, Clerk features won't work but the app will still function
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is missing. Clerk features will not work.")
+    }
+    return <>{children}</>
+  }
+
+  // Only render ClerkProvider if we have a valid key
   return (
     <OriginalClerkProvider
-      publishableKey={keyToUse}
+      publishableKey={publishableKey}
       appearance={{
         cssLayerName: "vendor",
         variables: {
