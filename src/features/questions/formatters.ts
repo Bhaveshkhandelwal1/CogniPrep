@@ -1,4 +1,4 @@
-import { QuestionDifficulty } from "@/drizzle/schema"
+import { QuestionDifficulty } from "@prisma/client"
 
 export function formatQuestionDifficulty(difficulty: QuestionDifficulty) {
   switch (difficulty) {

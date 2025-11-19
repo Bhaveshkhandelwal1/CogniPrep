@@ -11,13 +11,15 @@ const isPublicRoute = createRouteMatcher([
 const aj = arcjet({
   key: env.ARCJET_KEY,
   rules: [
-    shield({ mode: "LIVE" }),
+    shield({ 
+      mode: process.env.NODE_ENV === "production" ? "LIVE" : "DRY_RUN",
+    }),
     detectBot({
-      mode: "LIVE",
+      mode: process.env.NODE_ENV === "production" ? "LIVE" : "DRY_RUN",
       allow: ["CATEGORY:SEARCH_ENGINE", "CATEGORY:MONITOR", "CATEGORY:PREVIEW"],
     }),
     slidingWindow({
-      mode: "LIVE",
+      mode: process.env.NODE_ENV === "production" ? "LIVE" : "DRY_RUN",
       interval: "1m",
       max: 100,
     }),

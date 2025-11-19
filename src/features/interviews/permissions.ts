@@ -1,21 +1,30 @@
-import { db } from "@/drizzle/db"
-import { InterviewTable, JobInfoTable } from "@/drizzle/schema"
+import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/services/clerk/lib/getCurrentUser"
 import { hasPermission } from "@/services/clerk/lib/hasPermission"
-import { and, count, eq, isNotNull } from "drizzle-orm"
 
 export async function canCreateInterview() {
-  return await Promise.any([
-    hasPermission("unlimited_interviews").then(
-      bool => bool || Promise.reject()
-    ),
-    Promise.all([hasPermission("1_interview"), getUserInterviewCount()]).then(
-      ([has, c]) => {
-        if (has && c < 1) return true
-        return Promise.reject()
-      }
-    ),
-  ]).catch(() => false)
+  // Check for unlimited interviews permission first
+  const hasUnlimited = await hasPermission("unlimited_interviews")
+  if (hasUnlimited) {
+    return true
+  }
+
+  // Check for limited interviews (1 interview)
+  const hasLimited = await hasPermission("1_interview")
+  if (hasLimited) {
+    const count = await getUserInterviewCount()
+    return count < 1
+  }
+
+  // In development mode, allow interviews if no permissions are set
+  // This helps when testing or if Clerk features aren't configured yet
+  if (process.env.NODE_ENV === "development") {
+    console.log("Development mode: Allowing interview creation (no permission restrictions)")
+    return true
+  }
+
+  // No permission found, deny access
+  return false
 }
 
 async function getUserInterviewCount() {
@@ -26,13 +35,16 @@ async function getUserInterviewCount() {
 }
 
 async function getInterviewCount(userId: string) {
-  const [{ count: c }] = await db
-    .select({ count: count() })
-    .from(InterviewTable)
-    .innerJoin(JobInfoTable, eq(InterviewTable.jobInfoId, JobInfoTable.id))
-    .where(
-      and(eq(JobInfoTable.userId, userId), isNotNull(InterviewTable.humeChatId))
-    )
+  const count = await prisma.interview.count({
+    where: {
+      jobInfo: {
+        userId,
+      },
+      messages: {
+        not: null,
+      },
+    },
+  })
 
-  return c
+  return count
 }

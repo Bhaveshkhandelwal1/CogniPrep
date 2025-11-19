@@ -33,47 +33,62 @@ export function Navbar({ user }: { user: { name: string; imageUrl: string } }) {
   const pathName = usePathname()
 
   return (
-    <nav className="h-header border-b">
+    <nav className="h-header border-b bg-background/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
       <div className="container flex h-full items-center justify-between">
-        <Link href="/app" className="flex items-center gap-2">
-          <BrainCircuitIcon className="size-8 text-primary" />
-          <span className="text-xl font-bold">Landr</span>
+        <Link 
+          href="/" 
+          className="flex items-center gap-2.5 group transition-transform hover:scale-105"
+        >
+          <div className="relative">
+            <BrainCircuitIcon className="size-8 text-primary transition-all group-hover:rotate-12" />
+            <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
+          <span className="text-xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+            CogniPrep
+          </span>
         </Link>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
           {typeof jobInfoId === "string" &&
             navLinks.map(({ name, href, Icon }) => {
               const hrefPath = `/app/job-infos/${jobInfoId}/${href}`
+              const isActive = pathName === hrefPath
 
               return (
                 <Button
-                  variant={pathName === hrefPath ? "secondary" : "ghost"}
+                  variant={isActive ? "secondary" : "ghost"}
                   key={name}
                   asChild
-                  className="cursor-pointer max-sm:hidden"
+                  className={`cursor-pointer max-sm:hidden transition-all ${
+                    isActive 
+                      ? "shadow-lg" 
+                      : "hover:bg-accent/50"
+                  }`}
                 >
-                  <Link href={hrefPath}>
-                    <Icon />
-                    {name}
+                  <Link href={hrefPath} className="flex items-center gap-2">
+                    <Icon className="size-4" />
+                    <span>{name}</span>
                   </Link>
                 </Button>
               )
             })}
 
-          <ThemeToggle />
+          <div className="ml-2 pl-2 border-l">
+            <ThemeToggle />
+          </div>
 
           <DropdownMenu>
-            <DropdownMenuTrigger>
+            <DropdownMenuTrigger className="ml-2 rounded-full hover:ring-2 ring-primary/50 transition-all">
               <UserAvatar user={user} />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuItem onClick={() => openUserProfile()}>
-                <User className="mr-2" />
+                <User className="mr-2 size-4" />
                 Profile
               </DropdownMenuItem>
               <SignOutButton>
                 <DropdownMenuItem>
-                  <LogOut className="mr-2" />
+                  <LogOut className="mr-2 size-4" />
                   Logout
                 </DropdownMenuItem>
               </SignOutButton>

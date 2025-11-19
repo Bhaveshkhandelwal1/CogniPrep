@@ -1,8 +1,6 @@
-import { db } from "@/drizzle/db"
-import { JobInfoTable, QuestionTable } from "@/drizzle/schema"
+import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/services/clerk/lib/getCurrentUser"
 import { hasPermission } from "@/services/clerk/lib/hasPermission"
-import { count, eq } from "drizzle-orm"
 
 export async function canCreateQuestion() {
   return await Promise.any([
@@ -24,11 +22,13 @@ async function getUserQuestionCount() {
 }
 
 async function getQuestionCount(userId: string) {
-  const [{ count: c }] = await db
-    .select({ count: count() })
-    .from(QuestionTable)
-    .innerJoin(JobInfoTable, eq(QuestionTable.jobInfoId, JobInfoTable.id))
-    .where(eq(JobInfoTable.userId, userId))
+  const count = await prisma.question.count({
+    where: {
+      jobInfo: {
+        userId,
+      },
+    },
+  })
 
-  return c
+  return count
 }

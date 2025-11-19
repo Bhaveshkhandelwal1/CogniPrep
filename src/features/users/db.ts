@@ -1,22 +1,21 @@
-import { db } from "@/drizzle/db"
-import { UserTable } from "@/drizzle/schema"
-import { eq } from "drizzle-orm"
+import { prisma } from "@/lib/prisma"
 import { revalidateUserCache } from "./dbCache"
+import { Prisma } from "@prisma/client"
 
-export async function upsertUser(user: typeof UserTable.$inferInsert) {
-  await db
-    .insert(UserTable)
-    .values(user)
-    .onConflictDoUpdate({
-      target: [UserTable.id],
-      set: user,
+export async function upsertUser(user: Prisma.UserCreateInput) {
+  await prisma.user.upsert({
+    where: { id: user.id },
+    create: user,
+    update: user,
     })
 
-  revalidateUserCache(user.id)
+  revalidateUserCache(user.id as string)
 }
 
 export async function deleteUser(id: string) {
-  await db.delete(UserTable).where(eq(UserTable.id, id))
+  await prisma.user.delete({
+    where: { id },
+  })
 
   revalidateUserCache(id)
 }

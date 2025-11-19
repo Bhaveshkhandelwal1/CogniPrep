@@ -1,11 +1,13 @@
-import { ConnectionMessage } from "@humeai/voice-react"
-import { JsonMessage, ReturnChatEvent } from "hume/api/resources/empathicVoice"
-
-type Message = JsonMessage | ConnectionMessage | ReturnChatEvent
+type Message = {
+  type: "USER_MESSAGE" | "AGENT_MESSAGE"
+  messageText: string
+  role?: "user" | "assistant" | "USER" | "ASSISTANT"
+  timestamp?: number
+}
 
 export function condenseChatMessages(messages: Message[]) {
   return messages.reduce((acc, message) => {
-    const data = getChatEventData(message) ?? getJsonMessageData(message)
+    const data = getChatEventData(message)
     if (data == null || data.content == null) {
       return acc
     }
@@ -24,17 +26,6 @@ export function condenseChatMessages(messages: Message[]) {
 
     return acc
   }, [] as { isUser: boolean; content: string[] }[])
-}
-
-function getJsonMessageData(message: Message) {
-  if (message.type !== "user_message" && message.type !== "assistant_message") {
-    return null
-  }
-
-  return {
-    isUser: message.type === "user_message",
-    content: message.message.content,
-  }
 }
 
 function getChatEventData(message: Message) {

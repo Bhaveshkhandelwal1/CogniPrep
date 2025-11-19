@@ -11,11 +11,7 @@ import {
 } from "@/components/ui/resizable"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
-import {
-  JobInfoTable,
-  questionDifficulties,
-  QuestionDifficulty,
-} from "@/drizzle/schema"
+import { JobInfo, QuestionDifficulty } from "@prisma/client"
 import { formatQuestionDifficulty } from "@/features/questions/formatters"
 import { useMemo, useState } from "react"
 import { useCompletion } from "@ai-sdk/react"
@@ -24,10 +20,12 @@ import z from "zod"
 
 type Status = "awaiting-answer" | "awaiting-difficulty" | "init"
 
+const questionDifficulties: QuestionDifficulty[] = ["easy", "medium", "hard"]
+
 export function NewQuestionClientPage({
   jobInfo,
 }: {
-  jobInfo: Pick<typeof JobInfoTable.$inferSelect, "id" | "name" | "title">
+  jobInfo: Pick<JobInfo, "id" | "name" | "title">
 }) {
   const [status, setStatus] = useState<Status>("init")
   const [answer, setAnswer] = useState<string | null>(null)

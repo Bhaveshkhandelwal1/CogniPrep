@@ -6,14 +6,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { db } from "@/drizzle/db"
-import { InterviewTable } from "@/drizzle/schema"
+import { prisma } from "@/lib/prisma"
 import { getInterviewJobInfoTag } from "@/features/interviews/dbCache"
 import { JobInfoBackLink } from "@/features/jobInfos/components/JobInfoBackLink"
 import { getJobInfoIdTag } from "@/features/jobInfos/dbCache"
 import { formatDateTime } from "@/lib/formatters"
 import { getCurrentUser } from "@/services/clerk/lib/getCurrentUser"
-import { and, desc, eq, isNotNull } from "drizzle-orm"
 import { ArrowRightIcon, Loader2Icon, PlusIcon } from "lucide-react"
 import { cacheTag } from "next/dist/server/use-cache/cache-tag"
 import Link from "next/link"
@@ -103,13 +101,23 @@ async function getInterviews(jobInfoId: string, userId: string) {
   cacheTag(getInterviewJobInfoTag(jobInfoId))
   cacheTag(getJobInfoIdTag(jobInfoId))
 
-  const data = await db.query.InterviewTable.findMany({
-    where: and(
-      eq(InterviewTable.jobInfoId, jobInfoId),
-      isNotNull(InterviewTable.humeChatId)
-    ),
-    with: { jobInfo: { columns: { userId: true } } },
-    orderBy: desc(InterviewTable.updatedAt),
+  const data = await prisma.interview.findMany({
+    where: {
+      jobInfoId,
+      messages: {
+        not: null,
+      },
+    },
+    include: {
+      jobInfo: {
+        select: {
+          userId: true,
+        },
+      },
+    },
+    orderBy: {
+      updatedAt: "desc",
+    },
   })
 
   return data.filter(interview => interview.jobInfo.userId === userId)

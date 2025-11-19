@@ -1,12 +1,14 @@
-import { db } from "@/drizzle/db"
-import { JobInfoTable } from "@/drizzle/schema"
+import { prisma } from "@/lib/prisma"
 import { revalidateJobInfoCache } from "./dbCache"
-import { eq } from "drizzle-orm"
+import { Prisma } from "@prisma/client"
 
-export async function insertJobInfo(jobInfo: typeof JobInfoTable.$inferInsert) {
-  const [newJobInfo] = await db.insert(JobInfoTable).values(jobInfo).returning({
-    id: JobInfoTable.id,
-    userId: JobInfoTable.userId,
+export async function insertJobInfo(jobInfo: Prisma.JobInfoCreateInput) {
+  const newJobInfo = await prisma.jobInfo.create({
+    data: jobInfo,
+    select: {
+      id: true,
+      userId: true,
+    },
   })
 
   revalidateJobInfoCache(newJobInfo)
@@ -16,15 +18,15 @@ export async function insertJobInfo(jobInfo: typeof JobInfoTable.$inferInsert) {
 
 export async function updateJobInfo(
   id: string,
-  jobInfo: Partial<typeof JobInfoTable.$inferInsert>
+  jobInfo: Prisma.JobInfoUpdateInput
 ) {
-  const [updatedJobInfo] = await db
-    .update(JobInfoTable)
-    .set(jobInfo)
-    .where(eq(JobInfoTable.id, id))
-    .returning({
-      id: JobInfoTable.id,
-      userId: JobInfoTable.userId,
+  const updatedJobInfo = await prisma.jobInfo.update({
+    where: { id },
+    data: jobInfo,
+    select: {
+      id: true,
+      userId: true,
+    },
     })
 
   revalidateJobInfoCache(updatedJobInfo)

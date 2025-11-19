@@ -1,39 +1,52 @@
-import { JobInfoTable } from "@/drizzle/schema"
-import { fetchChatMessages } from "../hume/lib/api"
-import { generateText } from "ai"
+import { JobInfo } from "@prisma/client"
+import { RetryError, generateText } from "ai"
 import { google } from "./models/google"
 
+interface StoredMessage {
+  role: "user" | "assistant"
+  text: string
+  timestamp: string
+}
+
 export async function generateAiInterviewFeedback({
-  humeChatId,
+  messages,
   jobInfo,
   userName,
 }: {
-  humeChatId: string
+  messages?: string | null
   jobInfo: Pick<
-    typeof JobInfoTable.$inferSelect,
+    JobInfo,
     "title" | "description" | "experienceLevel"
   >
   userName: string
 }) {
-  const messages = await fetchChatMessages(humeChatId)
+  let formattedMessages: Array<{
+    speaker: "interviewee" | "interviewer"
+    text: string
+    emotionFeatures?: Record<string, number>
+  }>
 
-  const formattedMessages = messages
-    .map(message => {
-      if (message.type !== "USER_MESSAGE" && message.type !== "AGENT_MESSAGE") {
-        return null
-      }
-      if (message.messageText == null) return null
+  // Use stored messages from the interview
+  if (messages) {
+    try {
+      const storedMessages: StoredMessage[] = JSON.parse(messages)
+      formattedMessages = storedMessages.map(msg => ({
+        speaker: msg.role === "user" ? "interviewee" : "interviewer",
+        text: msg.text,
+      }))
+    } catch (err) {
+      console.error("Failed to parse stored messages:", err)
+      throw new Error("Failed to parse interview messages")
+    }
+  } else {
+    throw new Error("No messages available for feedback generation")
+  }
 
-      return {
-        speaker:
-          message.type === "USER_MESSAGE" ? "interviewee" : "interviewer",
-        text: message.messageText,
-        emotionFeatures:
-          message.role === "USER" ? message.emotionFeatures : undefined,
-      }
-    })
-    .filter(f => f != null)
+  const maxAttempts = 4
+  let lastError: unknown = null
 
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
   const { text } = await generateText({
     model: google("gemini-2.5-flash"),
     prompt: JSON.stringify(formattedMessages),
@@ -111,4 +124,26 @@ Additional Notes:
   })
 
   return text
+    } catch (error) {
+      lastError = error
+      const isRetryable =
+        error instanceof RetryError ||
+        (error instanceof Error &&
+          /overloaded|timeout|temporarily unavailable/i.test(error.message))
+
+      if (!isRetryable || attempt === maxAttempts) {
+        console.error("Failed to generate interview feedback:", error)
+        throw error
+      }
+
+      const backoff = attempt * 1500
+      console.warn(
+        `Interview feedback generation failed (attempt ${attempt}/${maxAttempts}). Retrying in ${backoff}ms...`,
+        error
+      )
+      await new Promise(resolve => setTimeout(resolve, backoff))
+    }
+  }
+
+  throw lastError ?? new Error("Unknown AI error")
 }

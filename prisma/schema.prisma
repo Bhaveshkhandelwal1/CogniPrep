@@ -1,0 +1,86 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum ExperienceLevel {
+  junior
+  mid_level
+  senior
+
+  @@map("experience_level")
+}
+
+enum QuestionDifficulty {
+  easy
+  medium
+  hard
+
+  @@map("question_difficulty")
+}
+
+model User {
+  id        String   @id
+  name      String   @db.VarChar(255)
+  email     String   @unique @db.VarChar(255)
+  imageUrl  String   @map("image_url") @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  jobInfos JobInfo[]
+
+  @@map("users")
+}
+
+model JobInfo {
+  id             String          @id @default(uuid())
+  title          String?         @db.VarChar(255)
+  name           String          @db.VarChar(255)
+  experienceLevel ExperienceLevel @map("experience_level")
+  description    String          @db.Text
+  userId         String          @map("user_id")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questions  Question[]
+  interviews Interview[]
+
+  @@map("job_info")
+}
+
+model Question {
+  id         String           @id @default(uuid())
+  jobInfoId  String           @map("job_info_id")
+  text       String           @db.Text
+  difficulty QuestionDifficulty
+  createdAt  DateTime         @default(now()) @map("created_at")
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+
+  jobInfo JobInfo @relation(fields: [jobInfoId], references: [id], onDelete: Cascade)
+
+  @@map("questions")
+}
+
+model Interview {
+  id         String    @id @default(uuid())
+  jobInfoId  String    @map("job_info_id")
+  duration   String    @db.VarChar(255)
+  humeChatId String?   @map("hume_chat_id") @db.VarChar(255)
+  messages   String?   @db.Text
+  feedback   String?   @db.Text
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  jobInfo JobInfo @relation(fields: [jobInfoId], references: [id], onDelete: Cascade)
+
+  @@map("interviews")
+}
+

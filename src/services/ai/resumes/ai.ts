@@ -1,4 +1,4 @@
-import { JobInfoTable } from "@/drizzle/schema"
+import { JobInfo } from "@prisma/client"
 import { streamObject } from "ai"
 import { google } from "../models/google"
 import { aiAnalyzeSchema } from "./schemas"
@@ -9,7 +9,7 @@ export async function analyzeResumeForJob({
 }: {
   resumeFile: File
   jobInfo: Pick<
-    typeof JobInfoTable.$inferSelect,
+    JobInfo,
     "title" | "experienceLevel" | "description"
   >
 }) {

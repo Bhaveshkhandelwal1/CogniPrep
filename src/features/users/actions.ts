@@ -1,16 +1,11 @@
 "use server"
 
-import { cacheTag } from "next/dist/server/use-cache/cache-tag"
-import { getUserIdTag } from "./dbCache"
-import { db } from "@/drizzle/db"
-import { UserTable } from "@/drizzle/schema"
-import { eq } from "drizzle-orm"
+import { prisma } from "@/lib/prisma"
 
 export async function getUser(id: string) {
-  "use cache"
-  cacheTag(getUserIdTag(id))
-
-  return db.query.UserTable.findFirst({
-    where: eq(UserTable.id, id),
+  // Don't use cache to ensure fresh data during onboarding
+  // This prevents stale cache issues when user is created
+  return prisma.user.findUnique({
+    where: { id },
   })
 }

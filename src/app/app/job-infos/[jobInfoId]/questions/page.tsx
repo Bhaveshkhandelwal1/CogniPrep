@@ -1,9 +1,7 @@
-import { db } from "@/drizzle/db"
-import { JobInfoTable } from "@/drizzle/schema"
+import { prisma } from "@/lib/prisma"
 import { getJobInfoIdTag } from "@/features/jobInfos/dbCache"
 import { canCreateQuestion } from "@/features/questions/permissions"
 import { getCurrentUser } from "@/services/clerk/lib/getCurrentUser"
-import { and, eq } from "drizzle-orm"
 import { Loader2Icon } from "lucide-react"
 import { cacheTag } from "next/dist/server/use-cache/cache-tag"
 import { notFound, redirect } from "next/navigation"
@@ -46,7 +44,10 @@ async function getJobInfo(id: string, userId: string) {
   "use cache"
   cacheTag(getJobInfoIdTag(id))
 
-  return db.query.JobInfoTable.findFirst({
-    where: and(eq(JobInfoTable.id, id), eq(JobInfoTable.userId, userId)),
+  return prisma.jobInfo.findFirst({
+    where: {
+      id,
+      userId,
+    },
   })
 }

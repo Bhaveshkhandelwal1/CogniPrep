@@ -1,10 +1,10 @@
-import { ExperienceLevel } from "@/drizzle/schema"
+import { ExperienceLevel } from "@prisma/client"
 
 export function formatExperienceLevel(level: ExperienceLevel) {
   switch (level) {
     case "junior":
       return "Junior"
-    case "mid-level":
+    case "mid_level":
       return "Mid-Level"
     case "senior":
       return "Senior"

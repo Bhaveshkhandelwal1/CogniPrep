@@ -138,40 +138,40 @@
 }
 
 .dark {
-  --background: oklch(0.1822 0 0);
-  --foreground: oklch(0.9288 0.0126 255.5078);
-  --card: oklch(0.2046 0 0);
-  --card-foreground: oklch(0.9288 0.0126 255.5078);
-  --popover: oklch(0.2603 0 0);
-  --popover-foreground: oklch(0.7348 0 0);
-  --primary: oklch(0.5065 0.1228 156.039);
-  --primary-foreground: oklch(0.9213 0.0135 167.1556);
-  --secondary: oklch(0.2603 0 0);
-  --secondary-foreground: oklch(0.9851 0 0);
-  --muted: oklch(0.2393 0 0);
-  --muted-foreground: oklch(0.7122 0 0);
-  --accent: oklch(0.3132 0 0);
-  --accent-foreground: oklch(0.9851 0 0);
-  --destructive: oklch(0.4659 0.1386 29.4477);
-  --warning: oklch(0.76 0.16 70.49);
-  --warning-foreground: oklch(0.9368 0.0045 34.3092);
-  --border: oklch(0.2809 0 0);
-  --input: oklch(0.2603 0 0);
-  --ring: oklch(0.8003 0.1821 151.711);
-  --chart-1: oklch(0.8003 0.1821 151.711);
-  --chart-2: oklch(0.7137 0.1434 254.624);
-  --chart-3: oklch(0.709 0.1592 293.5412);
-  --chart-4: oklch(0.8369 0.1644 84.4286);
-  --chart-5: oklch(0.7845 0.1325 181.912);
-  --sidebar: oklch(0.1822 0 0);
-  --sidebar-foreground: oklch(0.6301 0 0);
-  --sidebar-primary: oklch(0.4365 0.1044 156.7556);
-  --sidebar-primary-foreground: oklch(0.9213 0.0135 167.1556);
-  --sidebar-accent: oklch(0.3132 0 0);
-  --sidebar-accent-foreground: oklch(0.9851 0 0);
-  --sidebar-border: oklch(0.2809 0 0);
-  --sidebar-ring: oklch(0.8003 0.1821 151.711);
-  --destructive-foreground: oklch(0.9368 0.0045 34.3092);
+  --background: oklch(0.10 0.015 240);
+  --foreground: oklch(0.98 0.005 240);
+  --card: oklch(0.14 0.02 240);
+  --card-foreground: oklch(0.98 0.005 240);
+  --popover: oklch(0.16 0.025 240);
+  --popover-foreground: oklch(0.95 0.01 240);
+  --primary: oklch(0.72 0.24 245);
+  --primary-foreground: oklch(0.08 0.02 245);
+  --secondary: oklch(0.20 0.04 250);
+  --secondary-foreground: oklch(0.95 0.01 240);
+  --muted: oklch(0.18 0.03 245);
+  --muted-foreground: oklch(0.75 0.01 240);
+  --accent: oklch(0.24 0.05 255);
+  --accent-foreground: oklch(0.98 0.005 240);
+  --destructive: oklch(0.60 0.22 15);
+  --warning: oklch(0.75 0.20 65);
+  --warning-foreground: oklch(0.10 0.02 65);
+  --border: oklch(0.22 0.03 250);
+  --input: oklch(0.16 0.025 245);
+  --ring: oklch(0.72 0.24 245);
+  --chart-1: oklch(0.72 0.24 245);
+  --chart-2: oklch(0.68 0.22 250);
+  --chart-3: oklch(0.70 0.23 240);
+  --chart-4: oklch(0.74 0.21 260);
+  --chart-5: oklch(0.66 0.20 255);
+  --sidebar: oklch(0.10 0.015 240);
+  --sidebar-foreground: oklch(0.85 0.01 240);
+  --sidebar-primary: oklch(0.68 0.22 245);
+  --sidebar-primary-foreground: oklch(0.08 0.02 245);
+  --sidebar-accent: oklch(0.20 0.04 250);
+  --sidebar-accent-foreground: oklch(0.95 0.01 240);
+  --sidebar-border: oklch(0.22 0.03 250);
+  --sidebar-ring: oklch(0.72 0.24 245);
+  --destructive-foreground: oklch(0.98 0.005 15);
   --radius: 0.5rem;
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --font-mono: monospace;
@@ -211,6 +211,155 @@
   body {
     @apply bg-background text-foreground;
     letter-spacing: var(--tracking-normal);
+  }
+}
+
+/* Neon glow effects for dark mode - ONLY in header */
+@layer utilities {
+  /* Primary buttons with neon glow - ONLY in header */
+  .dark nav button[data-slot="button"][class*="bg-primary"],
+  .dark nav [data-slot="button"][class*="bg-primary"],
+  .dark nav button[class*="bg-primary"]:not([class*="bg-primary/"]),
+  .dark nav button.bg-primary {
+    box-shadow: 
+      0 0 10px oklch(0.72 0.24 245 / 0.4),
+      0 0 20px oklch(0.72 0.24 245 / 0.3),
+      0 0 30px oklch(0.72 0.24 245 / 0.2),
+      inset 0 0 10px oklch(0.72 0.24 245 / 0.1);
+    transition: box-shadow 0.3s ease, transform 0.2s ease;
+  }
+
+  .dark nav button[data-slot="button"][class*="bg-primary"]:hover,
+  .dark nav [data-slot="button"][class*="bg-primary"]:hover,
+  .dark nav button[class*="bg-primary"]:hover:not([class*="bg-primary/"]),
+  .dark nav button.bg-primary:hover {
+    box-shadow: 
+      0 0 15px oklch(0.72 0.24 245 / 0.6),
+      0 0 30px oklch(0.72 0.24 245 / 0.4),
+      0 0 45px oklch(0.72 0.24 245 / 0.3),
+      inset 0 0 15px oklch(0.72 0.24 245 / 0.15);
+    transform: translateY(-1px);
+  }
+
+  .dark nav button[data-slot="button"][class*="bg-primary"]:active,
+  .dark nav [data-slot="button"][class*="bg-primary"]:active,
+  .dark nav button[class*="bg-primary"]:active:not([class*="bg-primary/"]),
+  .dark nav button.bg-primary:active {
+    box-shadow: 
+      0 0 8px oklch(0.72 0.24 245 / 0.5),
+      0 0 15px oklch(0.72 0.24 245 / 0.3),
+      inset 0 0 8px oklch(0.72 0.24 245 / 0.2);
+    transform: translateY(0);
+  }
+
+  /* Secondary buttons with subtle glow - ONLY in header */
+  .dark nav button[data-slot="button"][class*="bg-secondary"],
+  .dark nav [data-slot="button"][class*="bg-secondary"],
+  .dark nav button[class*="bg-secondary"]:not([class*="bg-secondary/"]),
+  .dark nav button.bg-secondary,
+  .dark nav button[data-slot="button"][class*="bg-accent"],
+  .dark nav [data-slot="button"][class*="bg-accent"],
+  .dark nav button[class*="bg-accent"]:not([class*="bg-accent/"]) {
+    box-shadow: 
+      0 0 8px oklch(0.24 0.05 255 / 0.3),
+      0 0 15px oklch(0.24 0.05 255 / 0.2);
+    transition: box-shadow 0.3s ease;
+  }
+
+  .dark nav button[data-slot="button"][class*="bg-secondary"]:hover,
+  .dark nav [data-slot="button"][class*="bg-secondary"]:hover,
+  .dark nav button[class*="bg-secondary"]:hover:not([class*="bg-secondary/"]),
+  .dark nav button.bg-secondary:hover,
+  .dark nav button[data-slot="button"][class*="bg-accent"]:hover,
+  .dark nav [data-slot="button"][class*="bg-accent"]:hover,
+  .dark nav button[class*="bg-accent"]:hover:not([class*="bg-accent/"]) {
+    box-shadow: 
+      0 0 12px oklch(0.24 0.05 255 / 0.4),
+      0 0 25px oklch(0.24 0.05 255 / 0.3);
+  }
+
+  /* Links with neon effect - ONLY in header */
+  .dark nav a[class*="text-primary"],
+  .dark nav [class*="text-primary"] {
+    text-shadow: 
+      0 0 5px oklch(0.72 0.24 245 / 0.5),
+      0 0 10px oklch(0.72 0.24 245 / 0.3);
+    transition: text-shadow 0.3s ease;
+  }
+
+  .dark nav a[class*="text-primary"]:hover,
+  .dark nav [class*="text-primary"]:hover {
+    text-shadow: 
+      0 0 8px oklch(0.72 0.24 245 / 0.7),
+      0 0 15px oklch(0.72 0.24 245 / 0.5),
+      0 0 25px oklch(0.72 0.24 245 / 0.3);
+  }
+
+  /* Logo icon glow effect in header */
+  .dark nav [class*="BrainCircuitIcon"],
+  .dark nav svg.text-primary {
+    filter: drop-shadow(0 0 8px oklch(0.72 0.24 245 / 0.4));
+    transition: filter 0.3s ease, transform 0.3s ease;
+  }
+
+  .dark nav a:hover [class*="BrainCircuitIcon"],
+  .dark nav a:hover svg.text-primary {
+    filter: drop-shadow(0 0 12px oklch(0.72 0.24 245 / 0.6));
+  }
+
+  /* Navbar background enhancement */
+  .dark nav {
+    background: linear-gradient(
+      to bottom,
+      oklch(0.10 0.015 240 / 0.98),
+      oklch(0.10 0.015 240 / 0.95)
+    );
+    border-bottom-color: oklch(0.22 0.03 250);
+  }
+
+  /* Navbar border glow in dark mode */
+  .dark nav.border-b {
+    box-shadow: 0 1px 0 0 oklch(0.72 0.24 245 / 0.1),
+                0 0 20px oklch(0.72 0.24 245 / 0.05);
+  }
+
+  /* Focus rings with neon glow - ONLY in header */
+  .dark nav *:focus-visible {
+    outline-color: oklch(0.72 0.24 245);
+    outline-offset: 2px;
+    box-shadow: 
+      0 0 0 2px oklch(0.72 0.24 245 / 0.3),
+      0 0 10px oklch(0.72 0.24 245 / 0.2) !important;
+  }
+
+  /* Disable all neon effects globally (outside of nav) */
+  .dark button:not(nav button),
+  .dark [data-slot="button"]:not(nav [data-slot="button"]),
+  .dark input:not(nav input),
+  .dark textarea:not(nav textarea),
+  .dark select:not(nav select),
+  .dark [class*="card"]:not(nav [class*="card"]),
+  .dark [class*="Card"]:not(nav [class*="Card"]),
+  .dark a:not(nav a),
+  .dark [class*="text-primary"]:not(nav [class*="text-primary"]),
+  .dark [class*="border-primary"]:not(nav [class*="border-primary"]),
+  .dark [class*="border-ring"]:not(nav [class*="border-ring"]),
+  .dark [class*="badge"]:not(nav [class*="badge"]),
+  .dark [class*="Badge"]:not(nav [class*="Badge"]),
+  .dark [class*="tag"]:not(nav [class*="tag"]),
+  .dark *:focus-visible:not(nav *:focus-visible) {
+    box-shadow: none !important;
+    text-shadow: none !important;
+    transform: none !important;
+  }
+
+  /* Keep normal input focus styles (no glow) */
+  .dark input:focus,
+  .dark textarea:focus,
+  .dark select:focus {
+    border-color: oklch(0.72 0.24 245);
+    box-shadow: 0 0 0 1px oklch(0.72 0.24 245 / 0.3) !important;
+    outline: none;
   }
 }
 

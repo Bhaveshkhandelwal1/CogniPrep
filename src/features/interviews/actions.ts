@@ -3,9 +3,7 @@
 import { getCurrentUser } from "@/services/clerk/lib/getCurrentUser"
 import { cacheTag } from "next/dist/server/use-cache/cache-tag"
 import { getJobInfoIdTag } from "../jobInfos/dbCache"
-import { db } from "@/drizzle/db"
-import { and, eq } from "drizzle-orm"
-import { InterviewTable, JobInfoTable } from "@/drizzle/schema"
+import { prisma } from "@/lib/prisma"
 import { insertInterview, updateInterview as updateInterviewDb } from "./db"
 import { getInterviewIdTag } from "./dbCache"
 import { canCreateInterview } from "./permissions"
@@ -22,7 +20,7 @@ const aj = arcjet({
       capacity: 12,
       refillRate: 4,
       interval: "1d",
-      mode: "LIVE",
+      mode: process.env.NODE_ENV === "production" ? "LIVE" : "DRY_RUN",
     }),
   ],
 })
@@ -67,7 +65,10 @@ export async function createInterview({
     }
   }
 
-  const interview = await insertInterview({ jobInfoId, duration: "00:00:00" })
+  const interview = await insertInterview({
+    jobInfo: { connect: { id: jobInfoId } },
+    duration: "00:00:00",
+  })
 
   return { error: false, id: interview.id }
 }
@@ -75,8 +76,8 @@ export async function createInterview({
 export async function updateInterview(
   id: string,
   data: {
-    humeChatId?: string
     duration?: string
+    messages?: string
   }
 ) {
   const { userId } = await getCurrentUser()
@@ -117,18 +118,31 @@ export async function generateInterviewFeedback(interviewId: string) {
     }
   }
 
-  if (interview.humeChatId == null) {
+  if (interview.messages == null) {
     return {
       error: true,
       message: "Interview has not been completed yet",
     }
   }
 
-  const feedback = await generateAiInterviewFeedback({
-    humeChatId: interview.humeChatId,
-    jobInfo: interview.jobInfo,
-    userName: user.name,
-  })
+  let feedback: string
+  try {
+    feedback = await generateAiInterviewFeedback({
+      messages: interview.messages,
+      jobInfo: interview.jobInfo,
+      userName: user.name,
+    })
+  } catch (error) {
+    console.error("Failed to generate AI interview feedback:", error)
+    const message =
+      error instanceof Error && /overloaded/i.test(error.message)
+        ? "The AI model is temporarily overloaded. Please try generating feedback again in a moment."
+        : "Failed to generate AI feedback. Please try again."
+    return {
+      error: true,
+      message,
+    }
+  }
 
   if (feedback == null) {
     return {
@@ -146,8 +160,11 @@ async function getJobInfo(id: string, userId: string) {
   "use cache"
   cacheTag(getJobInfoIdTag(id))
 
-  return db.query.JobInfoTable.findFirst({
-    where: and(eq(JobInfoTable.id, id), eq(JobInfoTable.userId, userId)),
+  return prisma.jobInfo.findFirst({
+    where: {
+      id,
+      userId,
+    },
   })
 }
 
@@ -155,11 +172,11 @@ async function getInterview(id: string, userId: string) {
   "use cache"
   cacheTag(getInterviewIdTag(id))
 
-  const interview = await db.query.InterviewTable.findFirst({
-    where: eq(InterviewTable.id, id),
-    with: {
+  const interview = await prisma.interview.findUnique({
+    where: { id },
+    include: {
       jobInfo: {
-        columns: {
+        select: {
           id: true,
           userId: true,
           description: true,

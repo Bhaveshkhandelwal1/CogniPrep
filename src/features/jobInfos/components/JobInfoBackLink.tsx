@@ -1,8 +1,6 @@
 import { BackLink } from "@/components/BackLink"
-import { db } from "@/drizzle/db"
-import { JobInfoTable } from "@/drizzle/schema"
+import { prisma } from "@/lib/prisma"
 import { cn } from "@/lib/utils"
-import { eq } from "drizzle-orm"
 import { cacheTag } from "next/dist/server/use-cache/cache-tag"
 import { Suspense } from "react"
 import { getJobInfoIdTag } from "../dbCache"
@@ -35,7 +33,7 @@ async function getJobInfo(id: string) {
   "use cache"
   cacheTag(getJobInfoIdTag(id))
 
-  return db.query.JobInfoTable.findFirst({
-    where: eq(JobInfoTable.id, id),
+  return prisma.jobInfo.findUnique({
+    where: { id },
   })
 }

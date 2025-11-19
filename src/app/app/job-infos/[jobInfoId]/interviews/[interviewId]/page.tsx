@@ -2,13 +2,11 @@ import { BackLink } from "@/components/BackLink"
 import { Skeleton, SkeletonButton } from "@/components/Skeleton"
 import { SuspendedItem } from "@/components/SuspendedItem"
 import { Button } from "@/components/ui/button"
-import { db } from "@/drizzle/db"
-import { InterviewTable } from "@/drizzle/schema"
+import { prisma } from "@/lib/prisma"
 import { getInterviewIdTag } from "@/features/interviews/dbCache"
 import { getJobInfoIdTag } from "@/features/jobInfos/dbCache"
 import { formatDateTime } from "@/lib/formatters"
 import { getCurrentUser } from "@/services/clerk/lib/getCurrentUser"
-import { eq } from "drizzle-orm"
 import { cacheTag } from "next/dist/server/use-cache/cache-tag"
 import { notFound } from "next/navigation"
 import {
@@ -22,7 +20,6 @@ import { Loader2Icon } from "lucide-react"
 import { Suspense } from "react"
 import { CondensedMessages } from "@/services/hume/components/CondensedMessages"
 import { condenseChatMessages } from "@/services/hume/lib/condenseChatMessages"
-import { fetchChatMessages } from "@/services/hume/lib/api"
 import { ActionButton } from "@/components/ui/action-button"
 import { generateInterviewFeedback } from "@/features/interviews/actions"
 
@@ -104,16 +101,41 @@ export default async function InterviewPage({
 async function Messages({
   interview,
 }: {
-  interview: Promise<{ humeChatId: string | null }>
+  interview: Promise<{ messages: string | null }>
 }) {
   const { user, redirectToSignIn } = await getCurrentUser({ allData: true })
   if (user == null) return redirectToSignIn()
-  const { humeChatId } = await interview
-  if (humeChatId == null) return notFound()
-
-  const condensedMessages = condenseChatMessages(
-    await fetchChatMessages(humeChatId)
-  )
+  const { messages } = await interview
+  
+  let condensedMessages: ReturnType<typeof condenseChatMessages>
+  
+  // Use stored messages from the interview
+  if (messages) {
+    try {
+      const storedMessages = JSON.parse(messages)
+      condensedMessages = condenseChatMessages(
+        storedMessages.map((msg: { role: string; text: string; timestamp: string }) => ({
+          type: msg.role === "user" ? "USER_MESSAGE" : "AGENT_MESSAGE",
+          messageText: msg.text,
+          role: msg.role === "user" ? "USER" : "ASSISTANT",
+          timestamp: new Date(msg.timestamp).getTime(),
+        }))
+      )
+    } catch (err) {
+      console.error("Failed to parse stored messages:", err)
+      return (
+        <div className="text-center text-muted-foreground">
+          Failed to load interview transcript.
+        </div>
+      )
+    }
+  } else {
+    return (
+      <div className="text-center text-muted-foreground">
+        Interview transcript is not available yet. Please wait a moment and try again.
+      </div>
+    )
+  }
 
   return (
     <CondensedMessages
@@ -128,11 +150,11 @@ async function getInterview(id: string, userId: string) {
   "use cache"
   cacheTag(getInterviewIdTag(id))
 
-  const interview = await db.query.InterviewTable.findFirst({
-    where: eq(InterviewTable.id, id),
-    with: {
+  const interview = await prisma.interview.findUnique({
+    where: { id },
+    include: {
       jobInfo: {
-        columns: {
+        select: {
           id: true,
           userId: true,
         },

@@ -1,9 +1,5 @@
-import { db } from "@/drizzle/db"
-import {
-  JobInfoTable,
-  questionDifficulties,
-  QuestionTable,
-} from "@/drizzle/schema"
+import { prisma } from "@/lib/prisma"
+import { QuestionDifficulty } from "@prisma/client"
 import { getJobInfoIdTag } from "@/features/jobInfos/dbCache"
 import { insertQuestion } from "@/features/questions/db"
 import { getQuestionJobInfoTag } from "@/features/questions/dbCache"
@@ -12,9 +8,10 @@ import { PLAN_LIMIT_MESSAGE } from "@/lib/errorToast"
 import { generateAiQuestion } from "@/services/ai/questions"
 import { getCurrentUser } from "@/services/clerk/lib/getCurrentUser"
 import { createDataStreamResponse } from "ai"
-import { and, asc, eq } from "drizzle-orm"
 import { cacheTag } from "next/dist/server/use-cache/cache-tag"
 import z from "zod"
+
+const questionDifficulties: [QuestionDifficulty, ...QuestionDifficulty[]] = ["easy", "medium", "hard"]
 
 const schema = z.object({
   prompt: z.enum(questionDifficulties),
@@ -58,7 +55,7 @@ export async function POST(req: Request) {
         onFinish: async question => {
           const { id } = await insertQuestion({
             text: question,
-            jobInfoId,
+            jobInfo: { connect: { id: jobInfoId } },
             difficulty,
           })
 
@@ -74,9 +71,9 @@ async function getQuestions(jobInfoId: string) {
   "use cache"
   cacheTag(getQuestionJobInfoTag(jobInfoId))
 
-  return db.query.QuestionTable.findMany({
-    where: eq(QuestionTable.jobInfoId, jobInfoId),
-    orderBy: asc(QuestionTable.createdAt),
+  return prisma.question.findMany({
+    where: { jobInfoId },
+    orderBy: { createdAt: "asc" },
   })
 }
 
@@ -84,7 +81,10 @@ async function getJobInfo(id: string, userId: string) {
   "use cache"
   cacheTag(getJobInfoIdTag(id))
 
-  return db.query.JobInfoTable.findFirst({
-    where: and(eq(JobInfoTable.id, id), eq(JobInfoTable.userId, userId)),
+  return prisma.jobInfo.findFirst({
+    where: {
+      id,
+      userId,
+    },
   })
 }

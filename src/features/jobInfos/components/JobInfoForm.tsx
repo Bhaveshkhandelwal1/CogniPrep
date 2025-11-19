@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { experienceLevels, JobInfoTable } from "@/drizzle/schema/jobInfo"
+import { ExperienceLevel, JobInfo } from "@prisma/client"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -31,11 +31,13 @@ import { toast } from "sonner"
 
 type JobInfoFormData = z.infer<typeof jobInfoSchema>
 
+const experienceLevels: ExperienceLevel[] = ["junior", "mid_level", "senior"]
+
 export function JobInfoForm({
   jobInfo,
 }: {
   jobInfo?: Pick<
-    typeof JobInfoTable.$inferSelect,
+    JobInfo,
     "id" | "name" | "title" | "description" | "experienceLevel"
   >
 }) {
@@ -137,7 +139,7 @@ export function JobInfoForm({
               <FormLabel>Description</FormLabel>
               <FormControl>
                 <Textarea
-                  placeholder="A Next.js 15 and React 19 full stack web developer job that uses Drizzle ORM and Postgres for database management."
+                  placeholder="A Next.js 15 and React 19 full stack web developer job that uses Prisma ORM and MySQL for database management."
                   {...field}
                 />
               </FormControl>

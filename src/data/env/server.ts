@@ -10,16 +10,15 @@ export const env = createEnv({
     DB_NAME: z.string().min(1),
     ARCJET_KEY: z.string().min(1),
     CLERK_SECRET_KEY: z.string().min(1),
-    HUME_API_KEY: z.string().min(1),
-    HUME_SECRET_KEY: z.string().min(1),
     GEMINI_API_KEY: z.string().min(1),
+    OPENAI_API_KEY: z.string().min(1).optional(),
   },
   createFinalSchema: env => {
     return z.object(env).transform(val => {
       const { DB_HOST, DB_NAME, DB_PASSWORD, DB_PORT, DB_USER, ...rest } = val
       return {
         ...rest,
-        DATABASE_URL: `postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}`,
+        DATABASE_URL: `mysql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}`,
       }
     })
   },

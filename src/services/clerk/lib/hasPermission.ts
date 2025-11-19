@@ -8,6 +8,22 @@ type Permission =
   | "5_questions"
 
 export async function hasPermission(permission: Permission) {
+  try {
   const { has } = await auth()
-  return has({ feature: permission })
+    const result = await has({ feature: permission })
+    
+    // In development, log the permission check for debugging
+    if (process.env.NODE_ENV === "development") {
+      console.log(`Permission check for "${permission}":`, result)
+    }
+    
+    return result
+  } catch (error) {
+    // If there's an error checking permissions, allow in development
+    if (process.env.NODE_ENV === "development") {
+      console.warn(`Error checking permission "${permission}":`, error)
+      return true
+    }
+    return false
+  }
 }

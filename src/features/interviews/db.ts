@@ -1,15 +1,17 @@
-import { db } from "@/drizzle/db"
-import { InterviewTable } from "@/drizzle/schema"
+import { prisma } from "@/lib/prisma"
 import { revalidateInterviewCache } from "./dbCache"
-import { eq } from "drizzle-orm"
+import { Prisma } from "@prisma/client"
 
 export async function insertInterview(
-  interview: typeof InterviewTable.$inferInsert
+  interview: Prisma.InterviewCreateInput
 ) {
-  const [newInterview] = await db
-    .insert(InterviewTable)
-    .values(interview)
-    .returning({ id: InterviewTable.id, jobInfoId: InterviewTable.jobInfoId })
+  const newInterview = await prisma.interview.create({
+    data: interview,
+    select: {
+      id: true,
+      jobInfoId: true,
+    },
+  })
 
   revalidateInterviewCache(newInterview)
 
@@ -18,15 +20,18 @@ export async function insertInterview(
 
 export async function updateInterview(
   id: string,
-  interview: Partial<typeof InterviewTable.$inferInsert>
+  interview: Prisma.InterviewUpdateInput
 ) {
-  const [newInterview] = await db
-    .update(InterviewTable)
-    .set(interview)
-    .where(eq(InterviewTable.id, id))
-    .returning({ id: InterviewTable.id, jobInfoId: InterviewTable.jobInfoId })
+  const updatedInterview = await prisma.interview.update({
+    where: { id },
+    data: interview,
+    select: {
+      id: true,
+      jobInfoId: true,
+    },
+  })
 
-  revalidateInterviewCache(newInterview)
+  revalidateInterviewCache(updatedInterview)
 
-  return newInterview
+  return updatedInterview
 }

@@ -7,13 +7,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { db } from "@/drizzle/db"
-import { JobInfoTable } from "@/drizzle/schema"
+import { prisma } from "@/lib/prisma"
 import { JobInfoForm } from "@/features/jobInfos/components/JobInfoForm"
 import { getJobInfoUserTag } from "@/features/jobInfos/dbCache"
 import { formatExperienceLevel } from "@/features/jobInfos/lib/formatters"
 import { getCurrentUser } from "@/services/clerk/lib/getCurrentUser"
-import { desc, eq } from "drizzle-orm"
 import { ArrowRightIcon, Loader2Icon, PlusIcon } from "lucide-react"
 import { cacheTag } from "next/dist/server/use-cache/cache-tag"
 import Link from "next/link"
@@ -105,7 +103,7 @@ function NoJobInfos() {
   return (
     <div className="container my-4 max-w-5xl">
       <h1 className="text-3xl md:text-4xl lg:text-5xl mb-4">
-        Welcome to Landr
+        Welcome to CogniPrep
       </h1>
       <p className="text-muted-foreground mb-8">
         To get started, enter information about the type of job you are wanting
@@ -127,8 +125,8 @@ async function getJobInfos(userId: string) {
   "use cache"
   cacheTag(getJobInfoUserTag(userId))
 
-  return db.query.JobInfoTable.findMany({
-    where: eq(JobInfoTable.userId, userId),
-    orderBy: desc(JobInfoTable.updatedAt),
+  return prisma.jobInfo.findMany({
+    where: { userId },
+    orderBy: { updatedAt: "desc" },
   })
 }

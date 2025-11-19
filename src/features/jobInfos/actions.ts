@@ -5,9 +5,7 @@ import { jobInfoSchema } from "./schemas"
 import { getCurrentUser } from "@/services/clerk/lib/getCurrentUser"
 import { insertJobInfo, updateJobInfo as updateJobInfoDb } from "./db"
 import { redirect } from "next/navigation"
-import { db } from "@/drizzle/db"
-import { and, eq } from "drizzle-orm"
-import { JobInfoTable } from "@/drizzle/schema"
+import { prisma } from "@/lib/prisma"
 import { cacheTag } from "next/dist/server/use-cache/cache-tag"
 import { getJobInfoIdTag } from "./dbCache"
 
@@ -28,7 +26,7 @@ export async function createJobInfo(unsafeData: z.infer<typeof jobInfoSchema>) {
     }
   }
 
-  const jobInfo = await insertJobInfo({ ...data, userId })
+  const jobInfo = await insertJobInfo({ ...data, user: { connect: { id: userId } } })
 
   redirect(`/app/job-infos/${jobInfo.id}`)
 }
@@ -70,7 +68,10 @@ async function getJobInfo(id: string, userId: string) {
   "use cache"
   cacheTag(getJobInfoIdTag(id))
 
-  return db.query.JobInfoTable.findFirst({
-    where: and(eq(JobInfoTable.id, id), eq(JobInfoTable.userId, userId)),
+  return prisma.jobInfo.findFirst({
+    where: {
+      id,
+      userId,
+    },
   })
 }
