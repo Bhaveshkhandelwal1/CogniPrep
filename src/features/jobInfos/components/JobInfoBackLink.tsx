@@ -33,7 +33,28 @@ async function getJobInfo(id: string) {
   "use cache"
   cacheTag(getJobInfoIdTag(id))
 
-  return prisma.jobInfo.findUnique({
-    where: { id },
-  })
+  try {
+    return await prisma.jobInfo.findUnique({
+      where: { id },
+    })
+  } catch (error) {
+    // Handle Prisma connection errors gracefully
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const prismaError = error as any
+    
+    if (
+      prismaError?.name === 'PrismaClientInitializationError' ||
+      prismaError?.errorCode === 'P1001' ||
+      prismaError?.code === 'P1001' ||
+      (typeof prismaError?.message === 'string' && 
+       prismaError.message.includes("Can't reach database server"))
+    ) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn("Database connection error (server may be unreachable):", prismaError.message)
+      }
+      return null
+    }
+    
+    throw error
+  }
 }

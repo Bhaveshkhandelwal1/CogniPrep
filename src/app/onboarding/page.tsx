@@ -29,14 +29,16 @@ export default async function OnboardingPage() {
       
       if (email) {
         // Create user in database
+        // Pass shouldRevalidate=false to avoid revalidateTag during render
+        // We'll use revalidatePath instead which is safe during render
         await upsertUser({
           id: clerkData.id,
           email,
           name: `${clerkData.firstName || ""} ${clerkData.lastName || ""}`.trim() || email.split("@")[0],
           imageUrl: clerkData.imageUrl,
-        })
+        }, false) // Don't revalidate cache during render
         
-        // Revalidate the cache to ensure fresh data
+        // Revalidate the cache to ensure fresh data (safe during render)
         revalidatePath("/app")
         revalidatePath("/onboarding")
         

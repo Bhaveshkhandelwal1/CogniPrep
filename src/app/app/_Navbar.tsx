@@ -15,7 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { SignOutButton, useClerk } from "@clerk/nextjs"
+import dynamic from "next/dynamic"
 import Link from "next/link"
 import { UserAvatar } from "@/features/users/components/UserAvatar"
 import { useParams, usePathname } from "next/navigation"
@@ -27,8 +27,47 @@ const navLinks = [
   { name: "Resume", href: "resume", Icon: FileSlidersIcon },
 ]
 
+// Check if Clerk is configured
+const hasClerk = typeof window !== 'undefined' && 
+  !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
+  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY !== "pk_test_placeholder_for_build"
+
+// Dynamically import Clerk components only if Clerk is available
+const ClerkNavbarActions = hasClerk
+  ? dynamic(
+      () => import("@clerk/nextjs").then((mod) => {
+        const { SignOutButton, useClerk } = mod
+        return function ClerkNavbarActionsInner() {
+          const { openUserProfile } = useClerk()
+          return (
+            <>
+              <DropdownMenuItem onClick={() => openUserProfile()}>
+                <User className="mr-2 size-4" />
+                Profile
+              </DropdownMenuItem>
+              <SignOutButton>
+                <DropdownMenuItem>
+                  <LogOut className="mr-2 size-4" />
+                  Logout
+                </DropdownMenuItem>
+              </SignOutButton>
+            </>
+          )
+        }
+      }),
+      {
+        ssr: false,
+        loading: () => (
+          <DropdownMenuItem disabled>
+            <LogOut className="mr-2 size-4" />
+            Logout
+          </DropdownMenuItem>
+        ),
+      }
+    )
+  : null
+
 export function Navbar({ user }: { user: { name: string; imageUrl: string } }) {
-  const { openUserProfile } = useClerk()
   const { jobInfoId } = useParams()
   const pathName = usePathname()
 
@@ -82,16 +121,16 @@ export function Navbar({ user }: { user: { name: string; imageUrl: string } }) {
               <UserAvatar user={user} />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem onClick={() => openUserProfile()}>
-                <User className="mr-2 size-4" />
-                Profile
-              </DropdownMenuItem>
-              <SignOutButton>
-                <DropdownMenuItem>
-                  <LogOut className="mr-2 size-4" />
-                  Logout
+              {hasClerk && ClerkNavbarActions ? (
+                <ClerkNavbarActions />
+              ) : (
+                <DropdownMenuItem asChild>
+                  <Link href="/sign-in">
+                    <LogOut className="mr-2 size-4" />
+                    Logout
+                  </Link>
                 </DropdownMenuItem>
-              </SignOutButton>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

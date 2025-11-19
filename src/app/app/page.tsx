@@ -125,8 +125,54 @@ async function getJobInfos(userId: string) {
   "use cache"
   cacheTag(getJobInfoUserTag(userId))
 
-  return prisma.jobInfo.findMany({
-    where: { userId },
-    orderBy: { updatedAt: "desc" },
-  })
+  // Check if database is configured
+  const hasDatabase = !!process.env.DATABASE_URL
+  
+  if (!hasDatabase) {
+    return []
+  }
+
+  try {
+    // Check if prisma is properly initialized and has the jobInfo property
+    if (!prisma || typeof prisma !== 'object' || !('jobInfo' in prisma)) {
+      return []
+    }
+    
+    // Check if prisma.jobInfo exists and is a function (Prisma model)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const prismaClient = prisma as any
+    if (!prismaClient.jobInfo || typeof prismaClient.jobInfo.findMany !== 'function') {
+      return []
+    }
+
+    return await prismaClient.jobInfo.findMany({
+      where: { userId },
+      orderBy: { updatedAt: "desc" },
+    })
+  } catch (error) {
+    // Handle Prisma connection errors gracefully
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const prismaError = error as any
+    
+    // Check for PrismaClientInitializationError (database connection issues)
+    if (
+      prismaError?.name === 'PrismaClientInitializationError' ||
+      prismaError?.errorCode === 'P1001' ||
+      prismaError?.code === 'P1001' ||
+      (typeof prismaError?.message === 'string' && 
+       prismaError.message.includes("Can't reach database server"))
+    ) {
+      // Database connection error - return empty array gracefully
+      if (process.env.NODE_ENV === 'development') {
+        console.warn("Database connection error (server may be unreachable):", prismaError.message)
+      }
+      return []
+    }
+    
+    // If database query fails for other reasons, return empty array (graceful degradation)
+    if (process.env.NODE_ENV === 'development') {
+      console.error("Database query error:", error)
+    }
+    return []
+  }
 }

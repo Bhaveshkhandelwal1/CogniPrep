@@ -73,8 +73,29 @@ async function getUser(id: string) {
       where: { id },
     })
   } catch (error) {
-    // If database query fails, return null (graceful degradation)
-    console.error("Database query error:", error)
+    // Handle Prisma connection errors gracefully
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const prismaError = error as any
+    
+    // Check for PrismaClientInitializationError (database connection issues)
+    if (
+      prismaError?.name === 'PrismaClientInitializationError' ||
+      prismaError?.errorCode === 'P1001' ||
+      prismaError?.code === 'P1001' ||
+      (typeof prismaError?.message === 'string' && 
+       prismaError.message.includes("Can't reach database server"))
+    ) {
+      // Database connection error - return null gracefully
+      if (process.env.NODE_ENV === 'development') {
+        console.warn("Database connection error (server may be unreachable):", prismaError.message)
+      }
+      return null
+    }
+    
+    // If database query fails for other reasons, return null (graceful degradation)
+    if (process.env.NODE_ENV === 'development') {
+      console.error("Database query error:", error)
+    }
     return null
   }
 }
