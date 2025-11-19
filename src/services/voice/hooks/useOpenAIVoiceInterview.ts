@@ -50,31 +50,6 @@ export function useOpenAIVoiceInterview({
     messagesRef.current = messages
   }, [messages])
 
-  // Initialize audio element for playback
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      audioRef.current = new Audio()
-      audioRef.current.onended = () => {
-        setIsSpeaking(false)
-        if (state !== "error" && !isMuted && state === "speaking") {
-          setState("listening")
-          startRecording()
-        }
-      }
-      audioRef.current.onerror = () => {
-        setIsSpeaking(false)
-        setError("Failed to play audio. Please try again.")
-        setState("error")
-      }
-    }
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause()
-        audioRef.current = null
-      }
-    }
-  }, [state, isMuted])
-
   // Speak text using Web Speech API (free, unlimited) with OpenAI TTS as optional premium option
   const speak = useCallback(async (text: string, onEnd?: () => void) => {
     if (!text) return
@@ -151,7 +126,7 @@ export function useOpenAIVoiceInterview({
               if (useWebRecognitionFallback.current && recognitionRef.current) {
                 try {
                   recognitionRef.current.start()
-                } catch (e) {
+                } catch {
                   // Already started or error
                 }
               } else if (mediaRecorderRef.current && mediaRecorderRef.current.state === "inactive") {
@@ -183,6 +158,8 @@ export function useOpenAIVoiceInterview({
       setError(`Failed to speak: ${err instanceof Error ? err.message : "Unknown error"}`)
       setState("error")
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // speakWithWebSpeech is defined later, but it's stable (useCallback)
   }, [state, isMuted])
 
   // Fallback: Speak using Web Speech API (completely free, no API limits)
@@ -295,7 +272,7 @@ export function useOpenAIVoiceInterview({
           if (useWebRecognitionFallback.current && recognitionRef.current) {
             try {
               recognitionRef.current.start()
-            } catch (e) {
+            } catch {
               // Already started or error
             }
           } else if (mediaRecorderRef.current && mediaRecorderRef.current.state === "inactive") {
@@ -307,6 +284,8 @@ export function useOpenAIVoiceInterview({
 
     currentUtteranceRef.current = utterance
     window.speechSynthesis.speak(utterance)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // initWebSpeechRecognition uses speak, creating a circular dependency if included
   }, [state, isMuted])
 
   // Initialize Web Speech Recognition (fallback when OpenAI fails)
@@ -375,7 +354,7 @@ export function useOpenAIVoiceInterview({
       // Stop recognition while processing to avoid duplicate detections
       try {
         recognition.stop()
-      } catch (e) {
+      } catch {
         // Ignore if already stopped
       }
       
@@ -514,7 +493,7 @@ export function useOpenAIVoiceInterview({
             if (recognitionRef.current) {
               try {
                 recognitionRef.current.start()
-              } catch (e) {
+              } catch {
                 // Already started
               }
             }
@@ -816,7 +795,33 @@ export function useOpenAIVoiceInterview({
       setError("Failed to access microphone. Please allow microphone access.")
       setState("error")
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMuted, state, useWebRecognitionFallback, initWebSpeechRecognition])
+
+  // Initialize audio element for playback
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      audioRef.current = new Audio()
+      audioRef.current.onended = () => {
+        setIsSpeaking(false)
+        if (state !== "error" && !isMuted && state === "speaking") {
+          setState("listening")
+          startRecording()
+        }
+      }
+      audioRef.current.onerror = () => {
+        setIsSpeaking(false)
+        setError("Failed to play audio. Please try again.")
+        setState("error")
+      }
+    }
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current = null
+      }
+    }
+  }, [state, isMuted, startRecording])
 
   // Stop recording
   const stopRecording = useCallback(() => {
@@ -845,7 +850,7 @@ export function useOpenAIVoiceInterview({
       // Request microphone permission
       try {
         await navigator.mediaDevices.getUserMedia({ audio: true })
-      } catch (err) {
+      } catch {
         setError("Microphone access denied. Please allow microphone access and try again.")
         setState("error")
         return
@@ -924,7 +929,7 @@ export function useOpenAIVoiceInterview({
                   try {
                     setState("listening")
                     recognitionRef.current.start()
-                  } catch (e) {
+                  } catch (e: unknown) {
                     console.warn("Failed to start recognition after initial greeting:", e)
                     // Retry after a short delay
                     setTimeout(() => {
@@ -956,6 +961,7 @@ export function useOpenAIVoiceInterview({
       setError(`Failed to start interview: ${err instanceof Error ? err.message : "Unknown error"}`)
       setState("error")
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobInfo, userName, onMessage, speak])
 
   // Stop the interview

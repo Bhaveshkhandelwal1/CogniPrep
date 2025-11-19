@@ -140,7 +140,7 @@ export function useFreeVoiceInterview({
           if (recognitionRef.current && !isMuted) {
             try {
               recognitionRef.current.start()
-            } catch (e) {
+            } catch {
               // Already started
             }
           }
@@ -163,7 +163,7 @@ export function useFreeVoiceInterview({
             if (recognitionRef.current && state === "listening") {
               try {
                 recognitionRef.current.start()
-              } catch (e) {
+              } catch {
                 // Already started or other error - ignore
               }
             }
@@ -180,7 +180,7 @@ export function useFreeVoiceInterview({
             if (recognitionRef.current && state === "listening") {
               try {
                 recognitionRef.current.start()
-              } catch (e) {
+              } catch {
                 // If retry fails, show error
                 setError("Network connection issue. Please check your internet connection and try again.")
                 setState("error")
@@ -200,7 +200,7 @@ export function useFreeVoiceInterview({
             if (recognitionRef.current && state === "listening") {
               try {
                 recognitionRef.current.start()
-              } catch (e) {
+              } catch {
                 // Ignore restart errors
               }
             }
@@ -219,7 +219,7 @@ export function useFreeVoiceInterview({
           if (recognitionRef.current) {
             try {
               recognitionRef.current.start()
-            } catch (e) {
+            } catch {
               // Already started or error
             }
           }
@@ -228,6 +228,8 @@ export function useFreeVoiceInterview({
     }
 
     return recognition
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // speak is defined later, but adding it would cause a circular dependency
   }, [state, isMuted, messages, jobInfo, userName, onMessage])
 
   // Speak text using Web Speech API
@@ -286,7 +288,7 @@ export function useFreeVoiceInterview({
           if (preferredVoice) {
             try {
               utterance.voice = preferredVoice
-            } catch (e) {
+            } catch {
               // Ignore
             }
           }
@@ -306,7 +308,7 @@ export function useFreeVoiceInterview({
                   if (recognitionRef.current) {
                     try {
                       recognitionRef.current.start()
-                    } catch (e) {
+                    } catch {
                       // Already started
                     }
                   }
@@ -355,7 +357,7 @@ export function useFreeVoiceInterview({
     if (preferredVoice) {
       try {
         utterance.voice = preferredVoice
-      } catch (e) {
+      } catch (e: unknown) {
         console.warn("Could not set preferred voice, using default:", e)
         // Continue without setting voice - browser will use default
       }
@@ -383,7 +385,7 @@ export function useFreeVoiceInterview({
             if (recognitionRef.current) {
               try {
                 recognitionRef.current.start()
-              } catch (e) {
+              } catch {
                 // Already started
               }
             }
@@ -436,7 +438,7 @@ export function useFreeVoiceInterview({
                     if (recognitionRef.current) {
                       try {
                         recognitionRef.current.start()
-                      } catch (e) {
+                      } catch {
                         // Already started
                       }
                     }
@@ -492,7 +494,7 @@ export function useFreeVoiceInterview({
             if (recognitionRef.current) {
               try {
                 recognitionRef.current.start()
-              } catch (e) {
+              } catch {
                 // Already started
               }
             }
@@ -514,7 +516,7 @@ export function useFreeVoiceInterview({
       // Request microphone permission
       try {
         await navigator.mediaDevices.getUserMedia({ audio: true })
-      } catch (err) {
+      } catch {
         setError("Microphone access denied. Please allow microphone access and try again.")
         setState("error")
         return
@@ -647,7 +649,7 @@ export function useFreeVoiceInterview({
         if (recognitionRef.current) {
           try {
             recognitionRef.current.start()
-          } catch (e) {
+          } catch {
             // Already started
           }
         }
