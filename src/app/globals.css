@@ -77,39 +77,41 @@
 
 :root {
   --radius: 0.5rem;
-  --background: oklch(0.9911 0 0);
-  --foreground: oklch(0.2046 0 0);
-  --card: oklch(0.9911 0 0);
-  --card-foreground: oklch(0.2046 0 0);
-  --popover: oklch(0.9911 0 0);
-  --popover-foreground: oklch(0.4386 0 0);
-  --primary: oklch(0.7887 0.1576 158.218);
-  --primary-foreground: oklch(0.2626 0.0147 166.4589);
-  --secondary: oklch(0.9461 0 0);
-  --secondary-foreground: oklch(0.2046 0 0);
-  --muted: oklch(0.9461 0 0);
-  --muted-foreground: oklch(0.5382 0 0);
-  --accent: oklch(0.9461 0 0);
-  --accent-foreground: oklch(0.2478 0 0);
+  /* Light mode: Cream/Light Beige background (#F7F3E8) */
+  --background: oklch(0.96 0.01 85);
+  /* Light mode: Deep Charcoal text (#282C34) */
+  --foreground: oklch(0.20 0.01 250);
+  --card: oklch(0.97 0.01 85);
+  --card-foreground: oklch(0.20 0.01 250);
+  --popover: oklch(0.98 0.01 85);
+  --popover-foreground: oklch(0.20 0.01 250);
+  --primary: oklch(0.50 0.15 250);
+  --primary-foreground: oklch(0.98 0.01 85);
+  --secondary: oklch(0.94 0.01 85);
+  --secondary-foreground: oklch(0.20 0.01 250);
+  --muted: oklch(0.92 0.01 85);
+  --muted-foreground: oklch(0.45 0.01 250);
+  --accent: oklch(0.50 0.15 250);
+  --accent-foreground: oklch(0.98 0.01 85);
   --destructive: oklch(0.6254 0.2125 33.0722);
   --warning: oklch(0.77875 0.17259 66.559);
   --warning-foreground: oklch(0.2435 0 0);
-  --border: oklch(0.9037 0 0);
-  --input: oklch(0.9731 0 0);
-  --ring: oklch(0.8348 0.1302 160.908);
-  --chart-1: oklch(0.8348 0.1302 160.908);
+  --border: oklch(0.88 0.01 85);
+  --input: oklch(0.95 0.01 85);
+  --ring: oklch(0.50 0.15 250);
+  --chart-1: oklch(0.50 0.15 250);
   --chart-2: oklch(0.6231 0.188 259.8145);
   --chart-3: oklch(0.6056 0.2189 292.7172);
   --chart-4: oklch(0.7686 0.1647 70.0804);
   --chart-5: oklch(0.6959 0.1491 162.4796);
-  --sidebar: oklch(0.9911 0 0);
-  --sidebar-foreground: oklch(0.5452 0 0);
-  --sidebar-primary: oklch(0.8348 0.1302 160.908);
-  --sidebar-primary-foreground: oklch(0.2626 0.0147 166.4589);
-  --sidebar-accent: oklch(0.9461 0 0);
-  --sidebar-accent-foreground: oklch(0.2435 0 0);
-  --sidebar-border: oklch(0.9037 0 0);
-  --sidebar-ring: oklch(0.8348 0.1302 160.908);
+  --sidebar: oklch(0.96 0.01 85);
+  --sidebar-foreground: oklch(0.20 0.01 250);
+  --sidebar-primary: oklch(0.50 0.15 250);
+  --sidebar-primary-foreground: oklch(0.98 0.01 85);
+  --sidebar-accent: oklch(0.94 0.01 85);
+  --sidebar-accent-foreground: oklch(0.20 0.01 250);
+  --sidebar-border: oklch(0.88 0.01 85);
+  --sidebar-ring: oklch(0.50 0.15 250);
   --destructive-foreground: oklch(0.9934 0.0032 17.2118);
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --font-mono: monospace;
@@ -138,39 +140,43 @@
 }
 
 .dark {
+  /* Dark mode: Dark background */
   --background: oklch(0.10 0.015 240);
   --foreground: oklch(0.98 0.005 240);
   --card: oklch(0.14 0.02 240);
   --card-foreground: oklch(0.98 0.005 240);
   --popover: oklch(0.16 0.025 240);
   --popover-foreground: oklch(0.95 0.01 240);
-  --primary: oklch(0.72 0.24 245);
-  --primary-foreground: oklch(0.08 0.02 245);
-  --secondary: oklch(0.20 0.04 250);
+  /* Dark mode: Electric Blue (#0070F3) for primary */
+  --primary: oklch(0.50 0.20 250);
+  --primary-foreground: oklch(0.98 0.005 240);
+  --secondary: oklch(0.18 0.03 245);
   --secondary-foreground: oklch(0.95 0.01 240);
-  --muted: oklch(0.18 0.03 245);
+  --muted: oklch(0.16 0.025 245);
   --muted-foreground: oklch(0.75 0.01 240);
-  --accent: oklch(0.24 0.05 255);
-  --accent-foreground: oklch(0.98 0.005 240);
+  /* Dark mode: Neon Green (#00FF00) for accent */
+  --accent: oklch(0.80 0.25 145);
+  --accent-foreground: oklch(0.10 0.02 145);
   --destructive: oklch(0.60 0.22 15);
   --warning: oklch(0.75 0.20 65);
   --warning-foreground: oklch(0.10 0.02 65);
   --border: oklch(0.22 0.03 250);
   --input: oklch(0.16 0.025 245);
-  --ring: oklch(0.72 0.24 245);
-  --chart-1: oklch(0.72 0.24 245);
-  --chart-2: oklch(0.68 0.22 250);
-  --chart-3: oklch(0.70 0.23 240);
-  --chart-4: oklch(0.74 0.21 260);
-  --chart-5: oklch(0.66 0.20 255);
+  /* Dark mode: Electric Blue for ring/focus */
+  --ring: oklch(0.50 0.20 250);
+  --chart-1: oklch(0.50 0.20 250);
+  --chart-2: oklch(0.80 0.25 145);
+  --chart-3: oklch(0.75 0.20 200);
+  --chart-4: oklch(0.65 0.25 320);
+  --chart-5: oklch(0.70 0.22 250);
   --sidebar: oklch(0.10 0.015 240);
   --sidebar-foreground: oklch(0.85 0.01 240);
-  --sidebar-primary: oklch(0.68 0.22 245);
-  --sidebar-primary-foreground: oklch(0.08 0.02 245);
-  --sidebar-accent: oklch(0.20 0.04 250);
-  --sidebar-accent-foreground: oklch(0.95 0.01 240);
+  --sidebar-primary: oklch(0.50 0.20 250);
+  --sidebar-primary-foreground: oklch(0.98 0.005 240);
+  --sidebar-accent: oklch(0.80 0.25 145);
+  --sidebar-accent-foreground: oklch(0.10 0.02 145);
   --sidebar-border: oklch(0.22 0.03 250);
-  --sidebar-ring: oklch(0.72 0.24 245);
+  --sidebar-ring: oklch(0.50 0.20 250);
   --destructive-foreground: oklch(0.98 0.005 15);
   --radius: 0.5rem;
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
@@ -216,16 +222,16 @@
 
 /* Neon glow effects for dark mode - ONLY in header */
 @layer utilities {
-  /* Primary buttons with neon glow - ONLY in header */
+  /* Primary buttons with neon glow - ONLY in header (Electric Blue) */
   .dark nav button[data-slot="button"][class*="bg-primary"],
   .dark nav [data-slot="button"][class*="bg-primary"],
   .dark nav button[class*="bg-primary"]:not([class*="bg-primary/"]),
   .dark nav button.bg-primary {
     box-shadow: 
-      0 0 10px oklch(0.72 0.24 245 / 0.4),
-      0 0 20px oklch(0.72 0.24 245 / 0.3),
-      0 0 30px oklch(0.72 0.24 245 / 0.2),
-      inset 0 0 10px oklch(0.72 0.24 245 / 0.1);
+      0 0 10px oklch(0.50 0.20 250 / 0.4),
+      0 0 20px oklch(0.50 0.20 250 / 0.3),
+      0 0 30px oklch(0.50 0.20 250 / 0.2),
+      inset 0 0 10px oklch(0.50 0.20 250 / 0.1);
     transition: box-shadow 0.3s ease, transform 0.2s ease;
   }
 
@@ -234,10 +240,10 @@
   .dark nav button[class*="bg-primary"]:hover:not([class*="bg-primary/"]),
   .dark nav button.bg-primary:hover {
     box-shadow: 
-      0 0 15px oklch(0.72 0.24 245 / 0.6),
-      0 0 30px oklch(0.72 0.24 245 / 0.4),
-      0 0 45px oklch(0.72 0.24 245 / 0.3),
-      inset 0 0 15px oklch(0.72 0.24 245 / 0.15);
+      0 0 15px oklch(0.50 0.20 250 / 0.6),
+      0 0 30px oklch(0.50 0.20 250 / 0.4),
+      0 0 45px oklch(0.50 0.20 250 / 0.3),
+      inset 0 0 15px oklch(0.50 0.20 250 / 0.15);
     transform: translateY(-1px);
   }
 
@@ -246,13 +252,13 @@
   .dark nav button[class*="bg-primary"]:active:not([class*="bg-primary/"]),
   .dark nav button.bg-primary:active {
     box-shadow: 
-      0 0 8px oklch(0.72 0.24 245 / 0.5),
-      0 0 15px oklch(0.72 0.24 245 / 0.3),
-      inset 0 0 8px oklch(0.72 0.24 245 / 0.2);
+      0 0 8px oklch(0.50 0.20 250 / 0.5),
+      0 0 15px oklch(0.50 0.20 250 / 0.3),
+      inset 0 0 8px oklch(0.50 0.20 250 / 0.2);
     transform: translateY(0);
   }
 
-  /* Secondary buttons with subtle glow - ONLY in header */
+  /* Accent buttons with neon glow - ONLY in header (Neon Green) */
   .dark nav button[data-slot="button"][class*="bg-secondary"],
   .dark nav [data-slot="button"][class*="bg-secondary"],
   .dark nav button[class*="bg-secondary"]:not([class*="bg-secondary/"]),
@@ -261,8 +267,8 @@
   .dark nav [data-slot="button"][class*="bg-accent"],
   .dark nav button[class*="bg-accent"]:not([class*="bg-accent/"]) {
     box-shadow: 
-      0 0 8px oklch(0.24 0.05 255 / 0.3),
-      0 0 15px oklch(0.24 0.05 255 / 0.2);
+      0 0 8px oklch(0.80 0.25 145 / 0.3),
+      0 0 15px oklch(0.80 0.25 145 / 0.2);
     transition: box-shadow 0.3s ease;
   }
 
@@ -274,37 +280,37 @@
   .dark nav [data-slot="button"][class*="bg-accent"]:hover,
   .dark nav button[class*="bg-accent"]:hover:not([class*="bg-accent/"]) {
     box-shadow: 
-      0 0 12px oklch(0.24 0.05 255 / 0.4),
-      0 0 25px oklch(0.24 0.05 255 / 0.3);
+      0 0 12px oklch(0.80 0.25 145 / 0.4),
+      0 0 25px oklch(0.80 0.25 145 / 0.3);
   }
 
-  /* Links with neon effect - ONLY in header */
+  /* Links with neon effect - ONLY in header (Electric Blue) */
   .dark nav a[class*="text-primary"],
   .dark nav [class*="text-primary"] {
     text-shadow: 
-      0 0 5px oklch(0.72 0.24 245 / 0.5),
-      0 0 10px oklch(0.72 0.24 245 / 0.3);
+      0 0 5px oklch(0.50 0.20 250 / 0.5),
+      0 0 10px oklch(0.50 0.20 250 / 0.3);
     transition: text-shadow 0.3s ease;
   }
 
   .dark nav a[class*="text-primary"]:hover,
   .dark nav [class*="text-primary"]:hover {
     text-shadow: 
-      0 0 8px oklch(0.72 0.24 245 / 0.7),
-      0 0 15px oklch(0.72 0.24 245 / 0.5),
-      0 0 25px oklch(0.72 0.24 245 / 0.3);
+      0 0 8px oklch(0.50 0.20 250 / 0.7),
+      0 0 15px oklch(0.50 0.20 250 / 0.5),
+      0 0 25px oklch(0.50 0.20 250 / 0.3);
   }
 
-  /* Logo icon glow effect in header */
+  /* Logo icon glow effect in header (Electric Blue) */
   .dark nav [class*="BrainCircuitIcon"],
   .dark nav svg.text-primary {
-    filter: drop-shadow(0 0 8px oklch(0.72 0.24 245 / 0.4));
+    filter: drop-shadow(0 0 8px oklch(0.50 0.20 250 / 0.4));
     transition: filter 0.3s ease, transform 0.3s ease;
   }
 
   .dark nav a:hover [class*="BrainCircuitIcon"],
   .dark nav a:hover svg.text-primary {
-    filter: drop-shadow(0 0 12px oklch(0.72 0.24 245 / 0.6));
+    filter: drop-shadow(0 0 12px oklch(0.50 0.20 250 / 0.6));
   }
 
   /* Navbar background enhancement */
@@ -317,19 +323,19 @@
     border-bottom-color: oklch(0.22 0.03 250);
   }
 
-  /* Navbar border glow in dark mode */
+  /* Navbar border glow in dark mode (Electric Blue) */
   .dark nav.border-b {
-    box-shadow: 0 1px 0 0 oklch(0.72 0.24 245 / 0.1),
-                0 0 20px oklch(0.72 0.24 245 / 0.05);
+    box-shadow: 0 1px 0 0 oklch(0.50 0.20 250 / 0.1),
+                0 0 20px oklch(0.50 0.20 250 / 0.05);
   }
 
-  /* Focus rings with neon glow - ONLY in header */
+  /* Focus rings with neon glow - ONLY in header (Electric Blue) */
   .dark nav *:focus-visible {
-    outline-color: oklch(0.72 0.24 245);
+    outline-color: oklch(0.50 0.20 250);
     outline-offset: 2px;
     box-shadow: 
-      0 0 0 2px oklch(0.72 0.24 245 / 0.3),
-      0 0 10px oklch(0.72 0.24 245 / 0.2) !important;
+      0 0 0 2px oklch(0.50 0.20 250 / 0.3),
+      0 0 10px oklch(0.50 0.20 250 / 0.2) !important;
   }
 
   /* Disable all neon effects globally (outside of nav) */
@@ -353,12 +359,12 @@
     transform: none !important;
   }
 
-  /* Keep normal input focus styles (no glow) */
+  /* Keep normal input focus styles (Electric Blue) */
   .dark input:focus,
   .dark textarea:focus,
   .dark select:focus {
-    border-color: oklch(0.72 0.24 245);
-    box-shadow: 0 0 0 1px oklch(0.72 0.24 245 / 0.3) !important;
+    border-color: oklch(0.50 0.20 250);
+    box-shadow: 0 0 0 1px oklch(0.50 0.20 250 / 0.3) !important;
     outline: none;
   }
 }
