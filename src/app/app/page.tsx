@@ -36,7 +36,7 @@ async function JobInfos() {
   const { userId, redirectToSignIn } = await getCurrentUser()
   if (userId == null) return redirectToSignIn()
 
-  const jobInfos = await getJobInfos(userId)
+  const jobInfos: JobInfo[] = await getJobInfos(userId)
 
   if (jobInfos.length === 0) {
     return <NoJobInfos />
@@ -146,10 +146,11 @@ async function getJobInfos(userId: string): Promise<JobInfo[]> {
       return []
     }
 
-    return await prismaClient.jobInfo.findMany({
+    const result = await prismaClient.jobInfo.findMany({
       where: { userId },
       orderBy: { updatedAt: "desc" },
     })
+    return result as JobInfo[]
   } catch (error) {
     // Handle Prisma connection errors gracefully
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
