@@ -16,6 +16,7 @@ import { ArrowRightIcon, Loader2Icon, PlusIcon } from "lucide-react"
 import { cacheTag } from "next/dist/server/use-cache/cache-tag"
 import Link from "next/link"
 import { Suspense } from "react"
+import { JobInfo } from "@prisma/client"
 
 export default function AppPage() {
   return (
@@ -55,7 +56,7 @@ async function JobInfos() {
         </Button>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 has-hover:*:not-hover:opacity-70">
-        {jobInfos.map(jobInfo => (
+        {jobInfos.map((jobInfo: JobInfo) => (
           <Link
             className="hover:scale-[1.02] transition-[transform_opacity]"
             href={`/app/job-infos/${jobInfo.id}`}
@@ -121,7 +122,7 @@ function NoJobInfos() {
   )
 }
 
-async function getJobInfos(userId: string) {
+async function getJobInfos(userId: string): Promise<JobInfo[]> {
   "use cache"
   cacheTag(getJobInfoUserTag(userId))
 
