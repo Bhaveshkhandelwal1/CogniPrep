@@ -3,15 +3,23 @@ import { getCurrentUser } from "@/services/clerk/lib/getCurrentUser"
 import { hasPermission } from "@/services/clerk/lib/hasPermission"
 
 export async function canCreateQuestion() {
-  return await Promise.any([
-    hasPermission("unlimited_questions").then(bool => bool || Promise.reject()),
-    Promise.all([hasPermission("5_questions"), getUserQuestionCount()]).then(
-      ([has, c]) => {
-        if (has && c < 5) return true
-        return Promise.reject()
-      }
-    ),
-  ]).catch(() => false)
+  // Free model: Allow unlimited questions by default
+  // Check for unlimited questions permission first (for paid users with explicit permissions)
+  const hasUnlimited = await hasPermission("unlimited_questions")
+  if (hasUnlimited) {
+    return true
+  }
+
+  // Check for limited questions (5 questions) - this is for legacy/restricted plans
+  const hasLimited = await hasPermission("5_questions")
+  if (hasLimited) {
+    const count = await getUserQuestionCount()
+    return count < 5
+  }
+
+  // Free model: Allow unlimited questions for all users
+  // This means free users get unlimited questions
+  return true
 }
 
 async function getUserQuestionCount() {

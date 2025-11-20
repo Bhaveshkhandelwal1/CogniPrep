@@ -22,12 +22,12 @@ export async function getCurrentUser({ allData = false } = {}) {
   try {
     // Only call auth() if Clerk is configured
     const { auth } = await import("@clerk/nextjs/server")
-    const { userId, redirectToSignIn } = await auth()
+  const { userId, redirectToSignIn } = await auth()
 
-    return {
+  return {
       userId: userId || null,
-      redirectToSignIn,
-      user: allData && userId != null ? await getUser(userId) : undefined,
+    redirectToSignIn,
+    user: allData && userId != null ? await getUser(userId) : undefined,
     }
   } catch (error) {
     // If Clerk fails, return null user (graceful degradation)
@@ -70,8 +70,8 @@ async function getUser(id: string) {
     }
     
     return await prismaClient.user.findUnique({
-      where: { id },
-    })
+    where: { id },
+  })
   } catch (error) {
     // Handle Prisma connection errors gracefully
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

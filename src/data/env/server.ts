@@ -35,10 +35,10 @@ export const env = createEnv({
       }
       // Otherwise, construct DATABASE_URL from individual variables if all are present
       if (DB_HOST && DB_NAME && DB_PASSWORD && DB_PORT && DB_USER) {
-        return {
-          ...rest,
-          DATABASE_URL: `mysql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}`,
-        }
+      return {
+        ...rest,
+        DATABASE_URL: `mysql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}`,
+      }
       }
       return rest
     })

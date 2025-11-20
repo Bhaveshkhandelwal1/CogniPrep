@@ -48,15 +48,15 @@ export async function createInterview({
 
   // Only check rate limit if Arcjet is configured
   if (aj) {
-    const decision = await aj.protect(await request(), {
-      userId,
-      requested: 1,
-    })
+  const decision = await aj.protect(await request(), {
+    userId,
+    requested: 1,
+  })
 
-    if (decision.isDenied()) {
-      return {
-        error: true,
-        message: RATE_LIMIT_MESSAGE,
+  if (decision.isDenied()) {
+    return {
+      error: true,
+      message: RATE_LIMIT_MESSAGE,
       }
     }
   }
@@ -166,11 +166,11 @@ async function getJobInfo(id: string, userId: string) {
 
   try {
     return await prisma.jobInfo.findFirst({
-      where: {
-        id,
-        userId,
-      },
-    })
+    where: {
+      id,
+      userId,
+    },
+  })
   } catch (error) {
     // Handle Prisma connection errors gracefully
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

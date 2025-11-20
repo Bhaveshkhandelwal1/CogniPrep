@@ -126,8 +126,8 @@ export function Navbar({ user }: { user: { name: string; imageUrl: string } }) {
               ) : (
                 <DropdownMenuItem asChild>
                   <Link href="/sign-in">
-                    <LogOut className="mr-2 size-4" />
-                    Logout
+                  <LogOut className="mr-2 size-4" />
+                  Logout
                   </Link>
                 </DropdownMenuItem>
               )}

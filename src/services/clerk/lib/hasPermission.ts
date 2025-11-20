@@ -19,7 +19,7 @@ export async function hasPermission(permission: Permission) {
   }
 
   try {
-    const { has } = await auth()
+  const { has } = await auth()
     const result = await has({ feature: permission })
     
     // In development, log the permission check for debugging

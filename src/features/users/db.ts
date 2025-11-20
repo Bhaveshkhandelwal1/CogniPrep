@@ -32,9 +32,9 @@ export async function upsertUser(user: Prisma.UserCreateInput, shouldRevalidate 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const prismaClient = prisma as any
     await prismaClient.user.upsert({
-      where: { id: user.id },
-      create: user,
-      update: user,
+    where: { id: user.id },
+    create: user,
+    update: user,
     })
 
     // Only revalidate cache if not called during render (shouldRevalidate flag)
@@ -57,7 +57,7 @@ export async function upsertUser(user: Prisma.UserCreateInput, shouldRevalidate 
           data: user,
         })
         if (shouldRevalidate) {
-          revalidateUserCache(user.id as string)
+  revalidateUserCache(user.id as string)
         }
       } catch (updateError) {
         // If update also fails, log but don't throw (user might have been created by another request)

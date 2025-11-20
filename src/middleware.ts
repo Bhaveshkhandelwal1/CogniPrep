@@ -63,18 +63,18 @@ export default clerkMiddleware(async (auth, req) => {
   try {
     // Only run Arcjet protection if it's initialized
     if (aj) {
-      const decision = await aj.protect(req)
+  const decision = await aj.protect(req)
 
-      if (decision.isDenied()) {
+  if (decision.isDenied()) {
         return new NextResponse(null, { status: 403 })
       }
-    }
+  }
 
     // Only protect routes if Clerk is properly configured
     // If Clerk is not configured, auth.protect() will fail, so we skip it
     if (isClerkConfigured && !isPublicRoute(req)) {
       try {
-        await auth.protect()
+    await auth.protect()
       } catch (error) {
         // If auth fails (e.g., Clerk not properly configured), allow the request
         console.warn("Clerk auth failed, allowing request:", error)

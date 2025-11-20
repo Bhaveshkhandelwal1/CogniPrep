@@ -18,13 +18,13 @@ if (!process.env.DATABASE_URL) {
     
     if (!isBuildTime) {
       // Log missing variables for debugging (only at runtime)
-      console.warn('Warning: DATABASE_URL not set and individual DB variables are missing:', {
-        hasHost: !!DB_HOST,
-        hasUser: !!DB_USER,
-        hasPassword: !!DB_PASSWORD,
-        hasPort: !!DB_PORT,
-        hasName: !!DB_NAME,
-      })
+    console.warn('Warning: DATABASE_URL not set and individual DB variables are missing:', {
+      hasHost: !!DB_HOST,
+      hasUser: !!DB_USER,
+      hasPassword: !!DB_PASSWORD,
+      hasPort: !!DB_PORT,
+      hasName: !!DB_NAME,
+    })
     }
   }
 }
@@ -43,8 +43,8 @@ export const prisma =
   globalForPrisma.prisma ??
   (shouldCreatePrisma 
     ? new PrismaClient({
-        log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
-      })
+    log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
+  })
     : ({} as PrismaClient))
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma

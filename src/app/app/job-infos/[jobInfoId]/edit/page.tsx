@@ -51,11 +51,11 @@ async function getJobInfo(id: string, userId: string) {
 
   try {
     return await prisma.jobInfo.findFirst({
-      where: {
-        id,
-        userId,
-      },
-    })
+    where: {
+      id,
+      userId,
+    },
+  })
   } catch (error) {
     // Handle Prisma connection errors gracefully
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

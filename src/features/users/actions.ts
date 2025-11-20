@@ -28,8 +28,8 @@ export async function getUser(id: string) {
     }
     
     return await prismaClient.user.findUnique({
-      where: { id },
-    })
+    where: { id },
+  })
   } catch (error) {
     // If database query fails, return null (graceful degradation)
     console.error("Database query error:", error)
