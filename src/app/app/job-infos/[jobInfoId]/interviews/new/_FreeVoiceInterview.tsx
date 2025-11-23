@@ -109,6 +109,9 @@ export function FreeVoiceInterview({
         <div className="text-center max-w-md px-4 text-muted-foreground">
           <p className="mb-2">Ready to start your free AI-powered interview practice.</p>
           <p className="text-sm">Powered by browser-native Web Speech APIs - completely free, unlimited, and no API keys required!</p>
+          <p className="text-xs mt-2 text-muted-foreground/80">
+            Note: For best results, please use Chrome, Edge, or Safari and allow microphone access.
+          </p>
         </div>
         <Button size="lg" onClick={handleStart}>
           Start Interview

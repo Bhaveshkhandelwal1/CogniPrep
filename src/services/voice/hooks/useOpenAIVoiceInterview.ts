@@ -163,7 +163,36 @@ export function useOpenAIVoiceInterview({
   }, [state, isMuted])
 
   // Fallback: Speak using Web Speech API (completely free, no API limits)
-  const speakWithWebSpeech = useCallback((text: string, onEnd?: () => void) => {
+  // Helper function to wait for voices to load
+  const waitForVoices = useCallback((): Promise<SpeechSynthesisVoice[]> => {
+    return new Promise((resolve) => {
+      const voices = window.speechSynthesis.getVoices()
+      if (voices.length > 0) {
+        resolve(voices)
+        return
+      }
+
+      // Wait for voices to load
+      const onVoicesChanged = () => {
+        const loadedVoices = window.speechSynthesis.getVoices()
+        if (loadedVoices.length > 0) {
+          window.speechSynthesis.removeEventListener("voiceschanged", onVoicesChanged)
+          resolve(loadedVoices)
+        }
+      }
+
+      window.speechSynthesis.addEventListener("voiceschanged", onVoicesChanged)
+      
+      // Fallback timeout - use default voices if none load after 2 seconds
+      setTimeout(() => {
+        window.speechSynthesis.removeEventListener("voiceschanged", onVoicesChanged)
+        const fallbackVoices = window.speechSynthesis.getVoices()
+        resolve(fallbackVoices)
+      }, 2000)
+    })
+  }, [])
+
+  const speakWithWebSpeech = useCallback(async (text: string, onEnd?: () => void) => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) {
       setError("Speech synthesis is not supported in this browser.")
       setState("error")
@@ -184,109 +213,147 @@ export function useOpenAIVoiceInterview({
     setState("speaking")
     setIsSpeaking(true)
 
-    const utterance = new SpeechSynthesisUtterance(text)
-    
-    // Try to use a natural-sounding voice
-    const voices = window.speechSynthesis.getVoices()
-    const preferredVoice = voices.find(
-      voice => voice.name.includes("Google") ||
-               voice.name.includes("Natural") ||
-               voice.name.includes("Premium") ||
-               voice.name.includes("Enhanced")
-    ) || voices.find(voice => voice.lang.startsWith("en") && voice.localService === false) || voices.find(voice => voice.lang.startsWith("en"))
+    try {
+      // Wait for voices to be loaded (critical for Vercel/production)
+      const voices = await waitForVoices()
+      
+      const utterance = new SpeechSynthesisUtterance(text)
+      
+      // Try to use a natural-sounding voice
+      const preferredVoice = voices.find(
+        voice => voice.name.includes("Google") ||
+                 voice.name.includes("Natural") ||
+                 voice.name.includes("Premium") ||
+                 voice.name.includes("Enhanced")
+      ) || voices.find(voice => voice.lang.startsWith("en") && voice.localService === false) || voices.find(voice => voice.lang.startsWith("en"))
 
-    if (preferredVoice) {
-      utterance.voice = preferredVoice
-    }
+      if (preferredVoice) {
+        utterance.voice = preferredVoice
+        console.log("Using voice:", preferredVoice.name, preferredVoice.lang)
+      } else if (voices.length > 0) {
+        // Use first available voice if no preferred voice found
+        utterance.voice = voices[0]
+        console.log("Using fallback voice:", voices[0].name, voices[0].lang)
+      } else {
+        console.warn("No voices available, using default")
+      }
 
-    utterance.rate = 0.95
-    utterance.pitch = 1.0
-    utterance.volume = 1.0
+      utterance.rate = 0.95
+      utterance.pitch = 1.0
+      utterance.volume = 1.0
 
-    utterance.onstart = () => {
-      setIsSpeaking(true)
-      setState("speaking")
-    }
+      utterance.onstart = () => {
+        console.log("Speech started")
+        setIsSpeaking(true)
+        setState("speaking")
+      }
 
-    utterance.onend = () => {
-      setIsSpeaking(false)
-      if (onEnd) onEnd()
-      if (state !== "error" && !isMuted) {
-        // Reset processing flag when speech ends
-        isProcessingRef.current = false
-        setState("listening")
-        // Start listening after speech ends
-        setTimeout(() => {
-          if (useWebRecognitionFallback.current) {
-            // Initialize recognition if not already initialized
-            if (!recognitionRef.current) {
-              const recognition = initWebSpeechRecognition()
-              if (recognition) {
-                recognitionRef.current = recognition
-              }
-            }
-            // Start recognition only if not already running
-            if (recognitionRef.current) {
-              // Check if recognition is already running by checking its state
-              // Check if recognition is running (state property may not be available in all browsers)
-              let isRunning = false
-              try {
-                const recognition = recognitionRef.current as SpeechRecognition & { state?: string }
-                isRunning = recognition.state === "listening" || recognition.state === "starting"
-              } catch {
-                // State property not available, assume not running
-              }
-              
-              if (!isRunning) {
-                try {
-                  recognitionRef.current.start()
-                  console.log("Recognition started after speech ended")
-                } catch (e: unknown) {
-                  // If already started, that's okay - just log it
-                  if (e instanceof Error && (e.name === "InvalidStateError" || e.message?.includes("already started"))) {
-                    console.log("Recognition already running, continuing...")
-                  } else {
-                    console.warn("Recognition start error:", e)
-                  }
+      utterance.onend = () => {
+        console.log("Speech ended")
+        setIsSpeaking(false)
+        if (onEnd) onEnd()
+        if (state !== "error" && !isMuted) {
+          // Reset processing flag when speech ends
+          isProcessingRef.current = false
+          setState("listening")
+          // Start listening after speech ends
+          setTimeout(() => {
+            if (useWebRecognitionFallback.current) {
+              // Initialize recognition if not already initialized
+              if (!recognitionRef.current) {
+                console.log("Initializing recognition...")
+                const recognition = initWebSpeechRecognition()
+                if (recognition) {
+                  recognitionRef.current = recognition
+                  console.log("Recognition initialized")
+                } else {
+                  console.error("Failed to initialize recognition")
+                  setError("Speech recognition is not available. Please use Chrome, Edge, or Safari.")
+                  setState("error")
+                  return
                 }
-              } else {
-                console.log("Recognition already running, skipping start")
               }
+              // Start recognition only if not already running
+              if (recognitionRef.current) {
+                // Check if recognition is already running by checking its state
+                let isRunning = false
+                try {
+                  const recognition = recognitionRef.current as SpeechRecognition & { state?: string }
+                  isRunning = recognition.state === "listening" || recognition.state === "starting"
+                } catch {
+                  // State property not available, assume not running
+                }
+                
+                if (!isRunning) {
+                  try {
+                    console.log("Starting recognition...")
+                    recognitionRef.current.start()
+                    console.log("Recognition started successfully")
+                  } catch (e: unknown) {
+                    // If already started, that's okay - just log it
+                    if (e instanceof Error && (e.name === "InvalidStateError" || e.message?.includes("already started"))) {
+                      console.log("Recognition already running, continuing...")
+                    } else {
+                      console.error("Recognition start error:", e)
+                      // Try to reinitialize if start fails
+                      try {
+                        const newRecognition = initWebSpeechRecognition()
+                        if (newRecognition) {
+                          recognitionRef.current = newRecognition
+                          recognitionRef.current.start()
+                          console.log("Recognition reinitialized and started")
+                        }
+                      } catch (retryError) {
+                        console.error("Failed to reinitialize recognition:", retryError)
+                      }
+                    }
+                  }
+                } else {
+                  console.log("Recognition already running, skipping start")
+                }
+              }
+            } else if (mediaRecorderRef.current && mediaRecorderRef.current.state === "inactive") {
+              mediaRecorderRef.current.start()
             }
-          } else if (mediaRecorderRef.current && mediaRecorderRef.current.state === "inactive") {
-            mediaRecorderRef.current.start()
-          }
-        }, 800) // Increased delay to ensure speech has fully ended and recognition can start cleanly
+          }, 800) // Increased delay to ensure speech has fully ended and recognition can start cleanly
+        }
       }
-    }
 
-    utterance.onerror = (event) => {
+      utterance.onerror = (event) => {
+        console.error("Web Speech synthesis error:", event.error, event.type)
+        setIsSpeaking(false)
+        // Most errors are non-critical, continue the flow
+        if (onEnd) onEnd()
+        if (state !== "error" && !isMuted) {
+          setState("listening")
+          // Use refs to avoid circular dependency
+          setTimeout(() => {
+            if (useWebRecognitionFallback.current && recognitionRef.current) {
+              try {
+                recognitionRef.current.start()
+              } catch {
+                // Already started or error
+              }
+            } else if (mediaRecorderRef.current && mediaRecorderRef.current.state === "inactive") {
+              mediaRecorderRef.current.start()
+            }
+          }, 300)
+        }
+      }
+
+      currentUtteranceRef.current = utterance
+      console.log("Speaking text:", text.substring(0, 50) + "...")
+      window.speechSynthesis.speak(utterance)
+    } catch (error) {
+      console.error("Error in speakWithWebSpeech:", error)
       setIsSpeaking(false)
-      console.warn("Web Speech synthesis error (non-critical):", event)
-      // Most errors are non-critical, continue the flow
+      setError(`Failed to speak: ${error instanceof Error ? error.message : "Unknown error"}`)
+      setState("error")
       if (onEnd) onEnd()
-      if (state !== "error" && !isMuted) {
-        setState("listening")
-        // Use refs to avoid circular dependency
-        setTimeout(() => {
-          if (useWebRecognitionFallback.current && recognitionRef.current) {
-            try {
-              recognitionRef.current.start()
-            } catch {
-              // Already started or error
-            }
-          } else if (mediaRecorderRef.current && mediaRecorderRef.current.state === "inactive") {
-            mediaRecorderRef.current.start()
-          }
-        }, 300)
-      }
     }
-
-    currentUtteranceRef.current = utterance
-    window.speechSynthesis.speak(utterance)
     // eslint-disable-next-line react-hooks/exhaustive-deps
     // initWebSpeechRecognition uses speak, creating a circular dependency if included
-  }, [state, isMuted])
+  }, [state, isMuted, waitForVoices])
 
   // Initialize Web Speech Recognition (fallback when OpenAI fails)
   const initWebSpeechRecognition = useCallback(() => {
@@ -849,11 +916,59 @@ export function useOpenAIVoiceInterview({
 
       // Request microphone permission
       try {
-        await navigator.mediaDevices.getUserMedia({ audio: true })
-      } catch {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        streamRef.current = stream
+        console.log("Microphone access granted")
+      } catch (error) {
+        console.error("Microphone access denied:", error)
         setError("Microphone access denied. Please allow microphone access and try again.")
         setState("error")
         return
+      }
+
+      // Pre-initialize speech recognition early (before speaking) to ensure it's ready
+      if (useWebRecognitionFallback.current) {
+        console.log("Pre-initializing speech recognition...")
+        if (!recognitionRef.current) {
+          const recognition = initWebSpeechRecognition()
+          if (recognition) {
+            recognitionRef.current = recognition
+            console.log("Speech recognition pre-initialized successfully")
+          } else {
+            console.error("Failed to pre-initialize speech recognition")
+            setError("Speech recognition is not available. Please use Chrome, Edge, or Safari.")
+            setState("error")
+            return
+          }
+        }
+      }
+
+      // Pre-load voices to ensure they're available when needed
+      if (typeof window !== "undefined" && window.speechSynthesis) {
+        console.log("Pre-loading voices...")
+        const voices = window.speechSynthesis.getVoices()
+        if (voices.length === 0) {
+          // Wait for voices to load
+          await new Promise<void>((resolve) => {
+            const onVoicesChanged = () => {
+              const loadedVoices = window.speechSynthesis.getVoices()
+              if (loadedVoices.length > 0) {
+                window.speechSynthesis.removeEventListener("voiceschanged", onVoicesChanged)
+                console.log(`Loaded ${loadedVoices.length} voices`)
+                resolve()
+              }
+            }
+            window.speechSynthesis.addEventListener("voiceschanged", onVoicesChanged)
+            // Fallback timeout
+            setTimeout(() => {
+              window.speechSynthesis.removeEventListener("voiceschanged", onVoicesChanged)
+              console.warn("Voice loading timeout, continuing anyway")
+              resolve()
+            }, 2000)
+          })
+        } else {
+          console.log(`Already have ${voices.length} voices loaded`)
+        }
       }
 
       // Start duration timer
@@ -868,6 +983,7 @@ export function useOpenAIVoiceInterview({
 
       // Generate and speak initial greeting
       try {
+        console.log("Generating initial greeting...")
         const response = await fetch("/api/ai/interview/response", {
           method: "POST",
           headers: {
@@ -900,6 +1016,7 @@ export function useOpenAIVoiceInterview({
         }
 
         const initialResponse = data.response
+        console.log("Initial greeting generated:", initialResponse.substring(0, 50) + "...")
 
         const assistantMessage: VoiceInterviewMessage = {
           role: "assistant",
@@ -912,40 +1029,50 @@ export function useOpenAIVoiceInterview({
         onMessage?.(assistantMessage)
 
         // Speak the initial greeting, then start listening
+        console.log("Speaking initial greeting...")
         await speak(initialResponse, () => {
           // After initial greeting is spoken, start listening for user response
+          console.log("Initial greeting spoken, starting to listen...")
           if (!isMuted && state !== "error") {
             setTimeout(() => {
               if (useWebRecognitionFallback.current) {
-                // Initialize recognition if not already initialized
-                if (!recognitionRef.current) {
-                  const recognition = initWebSpeechRecognition()
-                  if (recognition) {
-                    recognitionRef.current = recognition
-                  }
-                }
-                // Start recognition
+                // Recognition should already be initialized, just start it
                 if (recognitionRef.current) {
                   try {
+                    console.log("Starting recognition after initial greeting...")
                     setState("listening")
                     recognitionRef.current.start()
+                    console.log("Recognition started successfully")
                   } catch (e: unknown) {
                     console.warn("Failed to start recognition after initial greeting:", e)
                     // Retry after a short delay
                     setTimeout(() => {
                       if (recognitionRef.current) {
                         try {
+                          console.log("Retrying recognition start...")
                           setState("listening")
                           recognitionRef.current.start()
+                          console.log("Recognition started on retry")
                         } catch (e2) {
                           console.error("Failed to start recognition on retry:", e2)
+                          setError("Failed to start speech recognition. Please refresh and try again.")
+                          setState("error")
                         }
+                      } else {
+                        console.error("Recognition ref is null on retry")
+                        setError("Speech recognition not available. Please refresh and try again.")
+                        setState("error")
                       }
                     }, 1000)
                   }
+                } else {
+                  console.error("Recognition not initialized")
+                  setError("Speech recognition not initialized. Please refresh and try again.")
+                  setState("error")
                 }
               } else {
                 // Use MediaRecorder approach
+                console.log("Using MediaRecorder approach")
                 startRecording()
               }
             }, 500)
@@ -962,7 +1089,7 @@ export function useOpenAIVoiceInterview({
       setState("error")
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobInfo, userName, onMessage, speak])
+  }, [jobInfo, userName, onMessage, speak, initWebSpeechRecognition])
 
   // Stop the interview
   const stop = useCallback(() => {
