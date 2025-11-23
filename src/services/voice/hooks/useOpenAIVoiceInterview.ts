@@ -348,7 +348,36 @@ export function useOpenAIVoiceInterview({
       }
 
       utterance.onerror = (event) => {
-        console.error("Web Speech synthesis error:", event.error, event.type)
+        const errorType = event.error || "unknown"
+        const errorName = event.type || "error"
+        
+        // "interrupted" errors are expected and non-critical - they happen when speech is cancelled
+        // or when a new utterance starts before the previous one finishes
+        if (errorType === "interrupted" || errorName === "interrupted") {
+          // This is expected behavior - just log at debug level, don't treat as error
+          console.log("Speech interrupted (expected when cancelling or starting new speech)")
+          setIsSpeaking(false)
+          // Still call onEnd and continue flow
+          if (onEnd) onEnd()
+          if (state !== "error" && !isMuted) {
+            setState("listening")
+            setTimeout(() => {
+              if (useWebRecognitionFallback.current && recognitionRef.current) {
+                try {
+                  recognitionRef.current.start()
+                } catch {
+                  // Already started or error
+                }
+              } else if (mediaRecorderRef.current && mediaRecorderRef.current.state === "inactive") {
+                mediaRecorderRef.current.start()
+              }
+            }, 150) // Reduced delay for smoother transition
+          }
+          return // Exit early for interrupted errors
+        }
+        
+        // For other errors, log but continue flow
+        console.warn("Web Speech synthesis error (non-critical):", errorType, errorName)
         setIsSpeaking(false)
         // Most errors are non-critical, continue the flow
         if (onEnd) onEnd()
@@ -365,7 +394,7 @@ export function useOpenAIVoiceInterview({
             } else if (mediaRecorderRef.current && mediaRecorderRef.current.state === "inactive") {
               mediaRecorderRef.current.start()
             }
-          }, 300)
+          }, 150) // Reduced delay for smoother transition
         }
       }
 
