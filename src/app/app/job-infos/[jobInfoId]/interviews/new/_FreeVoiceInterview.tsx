@@ -153,14 +153,14 @@ export function FreeVoiceInterview({
               
               // Test recognition
               interface WindowWithSpeechRecognition extends Window {
-                SpeechRecognition?: typeof SpeechRecognition
-                webkitSpeechRecognition?: typeof SpeechRecognition
+                SpeechRecognition?: new () => SpeechRecognition
+                webkitSpeechRecognition?: new () => SpeechRecognition
               }
-              const SpeechRecognition = 
+              const SpeechRecognitionConstructor = 
                 (window as WindowWithSpeechRecognition).SpeechRecognition || 
                 (window as WindowWithSpeechRecognition).webkitSpeechRecognition
-              if (SpeechRecognition) {
-                const recognition = new SpeechRecognition()
+              if (SpeechRecognitionConstructor) {
+                const recognition = new SpeechRecognitionConstructor()
                 recognition.continuous = false
                 recognition.interimResults = false
                 recognition.onresult = (e: SpeechRecognitionEvent) => {
@@ -245,8 +245,8 @@ export function FreeVoiceInterview({
               <div>Speech Synthesis: {typeof window !== "undefined" && "speechSynthesis" in window ? "Yes" : "No"}</div>
               <div>Speech Recognition: {typeof window !== "undefined" && (() => {
                 interface WindowWithSpeechRecognition extends Window {
-                  SpeechRecognition?: typeof SpeechRecognition
-                  webkitSpeechRecognition?: typeof SpeechRecognition
+                  SpeechRecognition?: new () => SpeechRecognition
+                  webkitSpeechRecognition?: new () => SpeechRecognition
                 }
                 return !!(window as WindowWithSpeechRecognition).SpeechRecognition || 
                        !!(window as WindowWithSpeechRecognition).webkitSpeechRecognition
