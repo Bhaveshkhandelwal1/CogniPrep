@@ -301,127 +301,172 @@ export function useOpenAIVoiceInterview({
         }
         
         // Start listening after speech ends
-        if (state !== "error" && !isMuted) {
-          // Reset processing flag when speech ends
-          isProcessingRef.current = false
-          setState("listening")
-          
-          // Start listening immediately after speech ends
-          const startListening = () => {
-            if (useWebRecognitionFallback.current) {
-              // Ensure recognition is initialized
-              if (!recognitionRef.current) {
-                console.log("Initializing recognition in onend...")
-                const recognition = initWebSpeechRecognition()
-                if (recognition) {
-                  recognitionRef.current = recognition
-                  console.log("✓ Recognition initialized in onend")
-                } else {
-                  console.error("✗ Failed to initialize recognition in onend")
-                  setError("Speech recognition is not available. Please use Chrome, Edge, or Safari.")
-                  setState("error")
-                  return
-                }
-              }
+        // Use a small delay to ensure speech synthesis has fully completed
+        // On mobile, use shorter delay for faster response
+        const startDelay = isMobileDevice.current ? 100 : 200
+        
+        setTimeout(() => {
+          // Check current state (not closure state) to avoid stale values
+          setState(currentState => {
+            // Only start listening if we're not in error state and not muted
+            if (currentState === "error" || isMuted) {
+              console.log("Skipping recognition start - state:", currentState, "muted:", isMuted)
+              return currentState
+            }
+            
+            // Reset processing flag when speech ends
+            isProcessingRef.current = false
+            
+            // Start listening immediately after speech ends
+            const startListening = () => {
+              console.log("🎤 Starting recognition after speech ended...")
               
-              // Start recognition with retry logic for production
-              // On mobile, use more attempts and shorter delays
-              if (recognitionRef.current) {
-                const maxAttempts = isMobileDevice.current ? 5 : 3
-                const verifyDelay = isMobileDevice.current ? 200 : 300
-                const retryDelay = isMobileDevice.current ? 100 : 200
-                const reinitDelay = isMobileDevice.current ? 300 : 500
+              if (useWebRecognitionFallback.current) {
+                // Ensure recognition is initialized
+                if (!recognitionRef.current) {
+                  console.log("Initializing recognition in onend...")
+                  const recognition = initWebSpeechRecognition()
+                  if (recognition) {
+                    recognitionRef.current = recognition
+                    console.log("✓ Recognition initialized in onend")
+                  } else {
+                    console.error("✗ Failed to initialize recognition in onend")
+                    setError("Speech recognition is not available. Please use Chrome, Edge, or Safari.")
+                    setState("error")
+                    return
+                  }
+                }
                 
-                const attemptStart = (attempt = 1) => {
-                  try {
-                    console.log(`📱 Starting recognition (attempt ${attempt}/${maxAttempts})... (mobile: ${isMobileDevice.current})`)
-                    
-                    // On mobile, ensure stream is still active before starting recognition
-                    if (isMobileDevice.current && streamRef.current) {
-                      const audioTracks = streamRef.current.getAudioTracks()
-                      const activeTracks = audioTracks.filter(t => t.readyState === 'live')
-                      if (activeTracks.length === 0) {
-                        console.warn("⚠ No active audio tracks, microphone may have been released")
-                        // Try to re-request permission
+                // Start recognition with retry logic for production
+                // On mobile, use more attempts and shorter delays
+                if (recognitionRef.current) {
+                  const maxAttempts = isMobileDevice.current ? 5 : 3
+                  const verifyDelay = isMobileDevice.current ? 200 : 300
+                  const retryDelay = isMobileDevice.current ? 100 : 200
+                  const reinitDelay = isMobileDevice.current ? 300 : 500
+                  
+                  const attemptStart = (attempt = 1) => {
+                    try {
+                      console.log(`📱 Starting recognition (attempt ${attempt}/${maxAttempts})... (mobile: ${isMobileDevice.current})`)
+                      
+                      // Check if stream is still active (especially important on mobile)
+                      if (streamRef.current) {
+                        const audioTracks = streamRef.current.getAudioTracks()
+                        const activeTracks = audioTracks.filter(t => t.readyState === 'live')
+                        if (activeTracks.length === 0) {
+                          console.warn("⚠ No active audio tracks, microphone may have been released")
+                          // Try to re-request permission
+                          if (attempt === 1) {
+                            navigator.mediaDevices.getUserMedia({ audio: true })
+                              .then(stream => {
+                                streamRef.current = stream
+                                console.log("✓ Re-acquired microphone stream")
+                                setTimeout(() => attemptStart(attempt), 200)
+                              })
+                              .catch(err => {
+                                console.error("Failed to re-acquire microphone:", err)
+                                setError("Microphone access was lost. Please refresh and try again.")
+                                setState("error")
+                              })
+                            return
+                          }
+                        } else {
+                          console.log(`✓ Found ${activeTracks.length} active audio track(s)`)
+                        }
+                      } else {
+                        console.warn("⚠ No stream reference - requesting new microphone access")
+                        // Try to get a new stream
                         if (attempt === 1) {
                           navigator.mediaDevices.getUserMedia({ audio: true })
                             .then(stream => {
                               streamRef.current = stream
-                              console.log("✓ Re-acquired microphone stream")
+                              console.log("✓ Acquired new microphone stream")
                               setTimeout(() => attemptStart(attempt), 200)
                             })
                             .catch(err => {
-                              console.error("Failed to re-acquire microphone:", err)
-                              setError("Microphone access was lost. Please refresh and try again.")
+                              console.error("Failed to acquire microphone:", err)
+                              setError("Microphone access required. Please allow microphone access and try again.")
                               setState("error")
                             })
                           return
                         }
-                      } else {
-                        console.log(`✓ Found ${activeTracks.length} active audio track(s)`)
                       }
-                    }
-                    
-                    recognitionRef.current!.start()
-                    console.log("✓ Recognition start() called successfully")
-                    
-                    // Verify it actually started after a short delay
-                    setTimeout(() => {
-                      try {
-                        const rec = recognitionRef.current as SpeechRecognition & { state?: string }
-                        const isListening = rec.state === "listening" || rec.state === "starting"
-                        if (!isListening && attempt < maxAttempts) {
-                          console.warn("Recognition didn't start, retrying...")
-                          setTimeout(() => attemptStart(attempt + 1), retryDelay)
-                        } else if (isListening) {
-                          console.log("✓ Recognition confirmed as listening")
-                        }
-                      } catch {
-                        // State check failed, assume it's working
-                      }
-                    }, verifyDelay)
-                  } catch (e: unknown) {
-                    if (e instanceof Error && (e.name === "InvalidStateError" || e.message?.includes("already started"))) {
-                      console.log("Recognition already running (this is okay)")
-                    } else {
-                      console.error(`✗ Recognition start error (attempt ${attempt}):`, e)
-                      // Try to reinitialize and start
-                      if (attempt < maxAttempts) {
+                      
+                      recognitionRef.current!.start()
+                      console.log("✓ Recognition start() called successfully")
+                      
+                      // Verify it actually started after a short delay
+                      setTimeout(() => {
                         try {
-                          console.log("Attempting to reinitialize recognition...")
-                          const newRecognition = initWebSpeechRecognition()
-                          if (newRecognition) {
-                            recognitionRef.current = newRecognition
+                          const rec = recognitionRef.current as SpeechRecognition & { state?: string }
+                          const isListening = rec.state === "listening" || rec.state === "starting"
+                          if (!isListening && attempt < maxAttempts) {
+                            console.warn("⚠ Recognition didn't start, retrying...")
                             setTimeout(() => attemptStart(attempt + 1), retryDelay)
+                          } else if (isListening) {
+                            console.log("✓ Recognition confirmed as listening")
+                            setState("listening")
                           } else {
-                            console.error("Failed to create new recognition instance")
-                            setTimeout(() => attemptStart(attempt + 1), retryDelay)
+                            // If we've exhausted attempts, set to listening anyway and let onend handler restart
+                            setState("listening")
                           }
-                        } catch (retryError) {
-                          console.error("✗ Failed to reinitialize recognition:", retryError)
-                          if (attempt < maxAttempts) {
-                            setTimeout(() => attemptStart(attempt + 1), reinitDelay)
-                          }
+                        } catch (verifyError) {
+                          console.warn("State check failed, assuming recognition is working:", verifyError)
+                          setState("listening")
                         }
+                      }, verifyDelay)
+                    } catch (e: unknown) {
+                      if (e instanceof Error && (e.name === "InvalidStateError" || e.message?.includes("already started"))) {
+                        console.log("✓ Recognition already running (this is okay)")
+                        setState("listening")
                       } else {
-                        console.error("✗ Failed to start recognition after all attempts")
-                        setError("Failed to start speech recognition. Please refresh and try again.")
-                        setState("error")
+                        console.error(`✗ Recognition start error (attempt ${attempt}):`, e)
+                        // Try to reinitialize and start
+                        if (attempt < maxAttempts) {
+                          try {
+                            console.log("Attempting to reinitialize recognition...")
+                            const newRecognition = initWebSpeechRecognition()
+                            if (newRecognition) {
+                              recognitionRef.current = newRecognition
+                              setTimeout(() => attemptStart(attempt + 1), retryDelay)
+                            } else {
+                              console.error("Failed to create new recognition instance")
+                              setTimeout(() => attemptStart(attempt + 1), retryDelay)
+                            }
+                          } catch (retryError) {
+                            console.error("✗ Failed to reinitialize recognition:", retryError)
+                            if (attempt < maxAttempts) {
+                              setTimeout(() => attemptStart(attempt + 1), reinitDelay)
+                            }
+                          }
+                        } else {
+                          console.error("✗ Failed to start recognition after all attempts")
+                          setError("Failed to start speech recognition. Please refresh and try again.")
+                          setState("error")
+                        }
                       }
                     }
                   }
+                  
+                  attemptStart()
+                } else {
+                  console.error("✗ Recognition ref is null")
+                  setError("Speech recognition failed to initialize. Please refresh and try again.")
+                  setState("error")
                 }
-                
-                attemptStart()
+              } else if (mediaRecorderRef.current && mediaRecorderRef.current.state === "inactive") {
+                mediaRecorderRef.current.start()
+                setState("listening")
+              } else {
+                console.warn("No recognition method available")
+                setState("listening") // Set state anyway to show we're ready
               }
-            } else if (mediaRecorderRef.current && mediaRecorderRef.current.state === "inactive") {
-              mediaRecorderRef.current.start()
             }
-          }
-          
-          // Start listening after speech ends - need enough time for recognition to be ready
-          setTimeout(startListening, 300) // Increased to ensure recognition is ready
-        }
+            
+            startListening()
+            return "listening"
+          })
+        }, startDelay)
       }
 
       utterance.onerror = (event) => {
