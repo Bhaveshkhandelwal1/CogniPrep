@@ -66,9 +66,10 @@ export function FreeVoiceInterview({
           // Stop the test stream immediately - we just wanted to trigger the permission prompt
           stream.getTracks().forEach(track => track.stop())
           console.log("✓ Microphone permission granted")
-        } catch (permError: any) {
+        } catch (permError: unknown) {
           console.error("Microphone permission error:", permError)
-          if (permError.name === "NotAllowedError" || permError.name === "PermissionDeniedError") {
+          const error = permError as { name?: string; message?: string }
+          if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
             errorToast("Microphone permission denied. Please allow microphone access and try again.")
             return
           }
@@ -151,17 +152,22 @@ export function FreeVoiceInterview({
               }
               
               // Test recognition
+              interface WindowWithSpeechRecognition extends Window {
+                SpeechRecognition?: typeof SpeechRecognition
+                webkitSpeechRecognition?: typeof SpeechRecognition
+              }
               const SpeechRecognition = 
-                (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+                (window as WindowWithSpeechRecognition).SpeechRecognition || 
+                (window as WindowWithSpeechRecognition).webkitSpeechRecognition
               if (SpeechRecognition) {
                 const recognition = new SpeechRecognition()
                 recognition.continuous = false
                 recognition.interimResults = false
-                recognition.onresult = (e: any) => {
+                recognition.onresult = (e: SpeechRecognitionEvent) => {
                   const transcript = e.results[0][0].transcript
                   alert(`Recognition test successful! You said: "${transcript}"`)
                 }
-                recognition.onerror = (e: any) => {
+                recognition.onerror = (e: SpeechRecognitionErrorEvent) => {
                   alert(`Recognition test failed: ${e.error}`)
                 }
                 recognition.start()
@@ -237,9 +243,14 @@ export function FreeVoiceInterview({
               <div>Is Muted: {isMuted ? "Yes" : "No"}</div>
               <div className="mt-2 font-bold">Browser Support:</div>
               <div>Speech Synthesis: {typeof window !== "undefined" && "speechSynthesis" in window ? "Yes" : "No"}</div>
-              <div>Speech Recognition: {typeof window !== "undefined" && (
-                (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-              ) ? "Yes" : "No"}</div>
+              <div>Speech Recognition: {typeof window !== "undefined" && (() => {
+                interface WindowWithSpeechRecognition extends Window {
+                  SpeechRecognition?: typeof SpeechRecognition
+                  webkitSpeechRecognition?: typeof SpeechRecognition
+                }
+                return !!(window as WindowWithSpeechRecognition).SpeechRecognition || 
+                       !!(window as WindowWithSpeechRecognition).webkitSpeechRecognition
+              })() ? "Yes" : "No"}</div>
               <div>Microphone: {typeof navigator !== "undefined" && navigator.mediaDevices ? "Yes" : "No"}</div>
               {error && (
                 <>
