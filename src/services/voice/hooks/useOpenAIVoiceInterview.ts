@@ -47,6 +47,16 @@ export function useOpenAIVoiceInterview({
   const accumulatedTranscriptRef = useRef("") // Accumulate complete speech
   const lastFinalIndexRef = useRef(-1) // Track last processed result index
   const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null) // Timeout for silence detection
+  
+  // Detect mobile device for mobile-specific handling
+  const isMobileDevice = useRef(false)
+  if (typeof window !== "undefined" && !isMobileDevice.current) {
+    const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera
+    isMobileDevice.current = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase())
+    if (isMobileDevice.current) {
+      console.log("📱 Mobile device detected - using mobile-optimized settings")
+    }
+  }
 
   // Update messagesRef whenever messages state changes
   useEffect(() => {
@@ -315,10 +325,16 @@ export function useOpenAIVoiceInterview({
               }
               
               // Start recognition with retry logic for production
+              // On mobile, use more attempts and shorter delays
               if (recognitionRef.current) {
-                const attemptStart = (attempt = 1, maxAttempts = 3) => {
+                const maxAttempts = isMobileDevice.current ? 5 : 3
+                const verifyDelay = isMobileDevice.current ? 200 : 300
+                const retryDelay = isMobileDevice.current ? 100 : 200
+                const reinitDelay = isMobileDevice.current ? 300 : 500
+                
+                const attemptStart = (attempt = 1) => {
                   try {
-                    console.log(`Starting recognition (attempt ${attempt}/${maxAttempts})...`)
+                    console.log(`📱 Starting recognition (attempt ${attempt}/${maxAttempts})... (mobile: ${isMobileDevice.current})`)
                     recognitionRef.current!.start()
                     console.log("✓ Recognition start() called successfully")
                     
@@ -329,14 +345,14 @@ export function useOpenAIVoiceInterview({
                         const isListening = rec.state === "listening" || rec.state === "starting"
                         if (!isListening && attempt < maxAttempts) {
                           console.warn("Recognition didn't start, retrying...")
-                          setTimeout(() => attemptStart(attempt + 1, maxAttempts), 200)
+                          setTimeout(() => attemptStart(attempt + 1), retryDelay)
                         } else if (isListening) {
                           console.log("✓ Recognition confirmed as listening")
                         }
                       } catch {
                         // State check failed, assume it's working
                       }
-                    }, 300)
+                    }, verifyDelay)
                   } catch (e: unknown) {
                     if (e instanceof Error && (e.name === "InvalidStateError" || e.message?.includes("already started"))) {
                       console.log("Recognition already running (this is okay)")
@@ -349,14 +365,15 @@ export function useOpenAIVoiceInterview({
                           const newRecognition = initWebSpeechRecognition()
                           if (newRecognition) {
                             recognitionRef.current = newRecognition
-                            setTimeout(() => attemptStart(attempt + 1, maxAttempts), 200)
+                            setTimeout(() => attemptStart(attempt + 1), retryDelay)
                           } else {
                             console.error("Failed to create new recognition instance")
+                            setTimeout(() => attemptStart(attempt + 1), retryDelay)
                           }
                         } catch (retryError) {
                           console.error("✗ Failed to reinitialize recognition:", retryError)
                           if (attempt < maxAttempts) {
-                            setTimeout(() => attemptStart(attempt + 1, maxAttempts), 500)
+                            setTimeout(() => attemptStart(attempt + 1), reinitDelay)
                           }
                         }
                       } else {
@@ -521,10 +538,17 @@ export function useOpenAIVoiceInterview({
     }
 
     const recognition = new SpeechRecognition()
-    recognition.continuous = true
+    // On mobile, continuous recognition may stop frequently, so we handle it differently
+    recognition.continuous = true // Keep true but handle mobile-specific behavior
     recognition.interimResults = true // Enable interim results for real-time feedback
     recognition.lang = "en-US"
     recognition.maxAlternatives = 1
+    
+    // Mobile-specific optimizations
+    if (isMobileDevice.current) {
+      console.log("📱 Applying mobile-specific recognition settings")
+      // On mobile, recognition may stop more frequently, so we'll be more aggressive with restarts
+    }
     
     // Optimize recognition settings for faster, more accurate results
     // Some browsers support these additional settings
@@ -591,6 +615,8 @@ export function useOpenAIVoiceInterview({
         
         // Wait for a pause (silence) before processing to ensure we have the complete sentence
         // This gives the user time to finish speaking
+        // On mobile, use shorter timeout as recognition may stop more frequently
+        const silenceTimeout = isMobileDevice.current ? 800 : 1500
         silenceTimeoutRef.current = setTimeout(() => {
           if (isProcessingRef.current || accumulatedTranscriptRef.current.length === 0) {
             return
@@ -615,7 +641,7 @@ export function useOpenAIVoiceInterview({
           // Reset for next speech
           accumulatedTranscriptRef.current = ""
           lastFinalIndexRef.current = -1
-        }, 1500) // Wait 1.5 seconds of silence before processing (user has finished speaking)
+        }, silenceTimeout) // Wait for silence before processing (shorter on mobile)
       }
     }
     
@@ -792,18 +818,31 @@ export function useOpenAIVoiceInterview({
         }
       } else if (errorType === "no-speech") {
         // No speech detected - this is normal, just restart listening quickly
+        // On mobile, this happens more frequently, so restart faster
         console.log("No speech detected, continuing to listen...")
         if (state === "listening" && !isMuted && !isProcessingRef.current) {
-          // Restart faster for smoother experience
+          // Restart faster for smoother experience, even faster on mobile
+          const restartDelay = isMobileDevice.current ? 100 : 200
           setTimeout(() => {
             if (recognitionRef.current) {
+              let isRunning = false
               try {
-                recognitionRef.current.start()
+                const recognition = recognitionRef.current as SpeechRecognition & { state?: string }
+                isRunning = recognition.state === "listening" || recognition.state === "starting"
               } catch {
-                // Already started
+                // State property not available, assume not running
+              }
+              
+              if (!isRunning) {
+                try {
+                  recognitionRef.current.start()
+                  console.log("✓ Restarted after no-speech (mobile optimized)")
+                } catch {
+                  // Already started
+                }
               }
             }
-          }, 200) // Reduced from 500ms for faster recovery
+          }, restartDelay) // Faster restart on mobile
         }
       } else if (errorType === "aborted") {
         // Aborted is normal when we stop it manually - ignore
@@ -851,7 +890,9 @@ export function useOpenAIVoiceInterview({
       }
       
       if (state === "listening" && !isMuted) {
-        console.log("Recognition ended, restarting in 300ms...")
+        // On mobile, recognition stops more frequently, so restart more aggressively
+        const restartDelay = isMobileDevice.current ? 50 : 100
+        console.log(`Recognition ended, restarting in ${restartDelay}ms... (mobile: ${isMobileDevice.current})`)
         setTimeout(() => {
           // Double-check conditions before restarting
           if (recognitionRef.current && state === "listening" && !isMuted && !isProcessingRef.current) {
@@ -865,20 +906,35 @@ export function useOpenAIVoiceInterview({
             }
             
             if (!isRunning) {
-              console.log("Restarting recognition after onend event")
+              console.log("🔄 Restarting recognition after onend event (mobile optimized)")
               try {
                 recognitionRef.current.start()
-                // Silent restart - no logging to reduce noise
+                console.log("✓ Recognition restarted successfully")
               } catch (e: unknown) {
                 // If already started, that's okay - silently continue
                 if (e instanceof Error && e.name !== "InvalidStateError" && !e.message?.includes("already started")) {
                   // Only log unexpected errors
                   console.warn("Recognition restart error:", e)
+                  // On mobile, retry once more after a short delay
+                  if (isMobileDevice.current) {
+                    setTimeout(() => {
+                      if (recognitionRef.current && state === "listening" && !isMuted) {
+                        try {
+                          recognitionRef.current.start()
+                          console.log("✓ Recognition restarted on retry")
+                        } catch {
+                          // Ignore retry errors
+                        }
+                      }
+                    }, 200)
+                  }
                 }
               }
+            } else {
+              console.log("Recognition already running, skipping restart")
             }
           }
-        }, 100) // Very short delay for responsive listening
+        }, restartDelay) // Faster restart on mobile
       }
     }
 
