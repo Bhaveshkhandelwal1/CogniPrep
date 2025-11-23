@@ -355,44 +355,64 @@ export function useOpenAIVoiceInterview({
       }
 
       currentUtteranceRef.current = utterance
-      console.log("Speaking text:", text.substring(0, 50) + "...")
+      console.log("🔊 Speaking text:", text.substring(0, 50) + "...")
       
       // Force speech to start - some browsers need this
       try {
         // Cancel any pending speech first
         window.speechSynthesis.cancel()
         // Small delay to ensure cancel is processed
-        await new Promise(resolve => setTimeout(resolve, 50))
-        // Now speak
-        window.speechSynthesis.speak(utterance)
+        await new Promise(resolve => setTimeout(resolve, 100))
         
-        // Verify speech actually started - check immediately and after a delay
-        const verifySpeech = () => {
-          if (window.speechSynthesis.speaking) {
-            console.log("✓ Speech is speaking (verified)")
-            if (!isSpeaking) {
-              setIsSpeaking(true)
-              setState("speaking")
-            }
-            return true
+        // Now speak - this MUST happen
+        console.log("Calling speechSynthesis.speak()...")
+        window.speechSynthesis.speak(utterance)
+        console.log("speechSynthesis.speak() called")
+        
+        // Force update state immediately
+        setIsSpeaking(true)
+        setState("speaking")
+        
+        // Verify speech actually started - check multiple times
+        let speechVerified = false
+        const checkSpeech = () => {
+          const isSpeakingNow = window.speechSynthesis.speaking
+          if (isSpeakingNow && !speechVerified) {
+            console.log("✓ Speech is speaking (verified via speaking check)")
+            speechVerified = true
+            setIsSpeaking(true)
+            setState("speaking")
           }
-          return false
+          return isSpeakingNow
         }
         
         // Check immediately
-        if (!verifySpeech()) {
-          // Check again after a short delay
-          setTimeout(() => {
-            if (!verifySpeech()) {
-              console.warn("Speech may not have started, but continuing...")
-              // Still set speaking state to true to continue flow
-              setIsSpeaking(true)
-              setState("speaking")
+        checkSpeech()
+        
+        // Check again after delays
+        setTimeout(() => {
+          if (!checkSpeech()) {
+            console.warn("⚠ Speech not detected as speaking after 200ms, but utterance was created")
+          }
+        }, 200)
+        
+        setTimeout(() => {
+          if (!checkSpeech()) {
+            console.warn("⚠ Speech not detected as speaking after 500ms")
+            // Try speaking again if it didn't start
+            try {
+              window.speechSynthesis.cancel()
+              setTimeout(() => {
+                window.speechSynthesis.speak(utterance)
+                console.log("Retried speaking")
+              }, 100)
+            } catch (retryError) {
+              console.error("Failed to retry speech:", retryError)
             }
-          }, 200)
-        }
+          }
+        }, 500)
       } catch (speakError) {
-        console.error("Error calling speechSynthesis.speak:", speakError)
+        console.error("✗ Error calling speechSynthesis.speak:", speakError)
         setIsSpeaking(false)
         setError(`Failed to speak: ${speakError instanceof Error ? speakError.message : "Unknown error"}`)
         setState("error")
@@ -1008,14 +1028,33 @@ export function useOpenAIVoiceInterview({
         return
       }
 
-      // Request microphone permission
+      // Request microphone permission - MUST be done in user interaction context
+      console.log("Requesting microphone permission...")
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        // Request with explicit error handling
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          } 
+        })
         streamRef.current = stream
-        console.log("Microphone access granted")
-      } catch (error) {
-        console.error("Microphone access denied:", error)
-        setError("Microphone access denied. Please allow microphone access and try again.")
+        console.log("✓ Microphone access granted")
+        
+        // Keep stream active to maintain permission
+        // Don't stop tracks here - we need them for recognition
+      } catch (error: any) {
+        console.error("✗ Microphone access denied:", error)
+        let errorMessage = "Microphone access denied. "
+        if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
+          errorMessage += "Please click 'Allow' when prompted, or enable microphone access in your browser settings."
+        } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
+          errorMessage += "No microphone found. Please connect a microphone and try again."
+        } else {
+          errorMessage += `Error: ${error.message || error.name || "Unknown error"}. Please try again.`
+        }
+        setError(errorMessage)
         setState("error")
         return
       }
@@ -1123,12 +1162,25 @@ export function useOpenAIVoiceInterview({
         onMessage?.(assistantMessage)
 
         // Speak the initial greeting, then start listening
-        console.log("Speaking initial greeting...")
+        console.log("🔊 Speaking initial greeting...")
+        console.log("Initial response text:", initialResponse)
+        
+        // Ensure we actually call speak
+        if (!initialResponse || initialResponse.trim().length === 0) {
+          console.error("✗ Initial response is empty!")
+          setError("Failed to generate initial greeting. Please try again.")
+          setState("error")
+          return
+        }
+        
         await speak(initialResponse, () => {
           // This callback is called when speech ends
           // The speak function's onend handler will start recognition
           console.log("✓ Initial greeting callback fired - recognition should start automatically")
         })
+        
+        // Double-check that speech was called
+        console.log("speak() function called, checking if speech started...")
       } catch (err: unknown) {
         console.error("Error generating initial response:", err)
         setError(`Initial response error: ${err instanceof Error ? err.message : "Unknown error"}`)
