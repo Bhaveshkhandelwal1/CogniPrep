@@ -758,11 +758,20 @@ export function useOpenAIVoiceInterview({
     }
 
     recognition.onend = () => {
+      console.log("Recognition ended - checking if should restart")
       // Auto-restart if we're still in listening state and not processing
       // This ensures continuous listening
-      if (state === "listening" && !isMuted && !isProcessingRef.current) {
+      // BUT: Don't restart if we're processing (we manually stopped it)
+      if (isProcessingRef.current) {
+        console.log("Not restarting recognition - currently processing")
+        return
+      }
+      
+      if (state === "listening" && !isMuted) {
+        console.log("Recognition ended, restarting in 200ms...")
         setTimeout(() => {
-          if (recognitionRef.current && state === "listening" && !isProcessingRef.current) {
+          // Double-check conditions before restarting
+          if (recognitionRef.current && state === "listening" && !isMuted && !isProcessingRef.current) {
             // Check if recognition is already running
             let isRunning = false
             try {
@@ -773,6 +782,7 @@ export function useOpenAIVoiceInterview({
             }
             
             if (!isRunning) {
+              console.log("Restarting recognition after onend event")
               try {
                 recognitionRef.current.start()
                 // Silent restart - no logging to reduce noise
