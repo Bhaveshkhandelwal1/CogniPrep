@@ -288,14 +288,20 @@ function Controls({
         {callDuration}
       </div>
       {isSpeaking && (
-        <div className="text-xs text-muted-foreground italic">
-          AI is speaking...
+        <div className="flex items-center gap-2 text-xs text-muted-foreground italic animate-pulse">
+          <div className="w-2 h-2 bg-primary rounded-full" />
+          <span>AI is speaking...</span>
         </div>
       )}
       {isListening && !isSpeaking && !isMuted && (
         <div className="flex items-center gap-2 text-xs text-primary">
           <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-          <span>Listening...</span>
+          <span className="animate-pulse">Listening...</span>
+        </div>
+      )}
+      {!isSpeaking && !isListening && !isMuted && (
+        <div className="text-xs text-muted-foreground">
+          Ready
         </div>
       )}
       <Button

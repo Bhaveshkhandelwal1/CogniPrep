@@ -240,9 +240,11 @@ export function useOpenAIVoiceInterview({
         console.warn("No voices available, using default")
       }
 
-      utterance.rate = 0.95
+      // Optimized voice settings for natural conversation
+      utterance.rate = 1.0 // Slightly faster for more natural pace
       utterance.pitch = 1.0
       utterance.volume = 1.0
+      utterance.lang = "en-US" // Explicitly set language
 
       utterance.onstart = (event) => {
         console.log("Speech started event fired", event)
@@ -250,12 +252,39 @@ export function useOpenAIVoiceInterview({
         setState("speaking")
       }
       
-      // Also check if speech is actually speaking (some browsers don't fire onstart)
-      utterance.onboundary = () => {
+      // Handle speech boundaries - also prepare recognition near end
+      utterance.onboundary = (event) => {
+        // Update state if needed
         if (!isSpeaking) {
           console.log("Speech boundary detected, updating state")
           setIsSpeaking(true)
           setState("speaking")
+        }
+        
+        // Pre-start recognition slightly before speech ends for ultra-smooth transition
+        if (event.charIndex > 0 && utterance.text && event.charIndex > utterance.text.length * 0.8) {
+          // We're 80% through the speech - prepare recognition
+          if (!isMuted && state !== "error" && !recognitionRef.current) {
+            const recognition = initWebSpeechRecognition()
+            if (recognition) {
+              recognitionRef.current = recognition
+              console.log("Pre-initialized recognition near end of speech")
+            }
+          }
+        }
+      }
+
+      // Pre-start recognition slightly before speech ends for ultra-smooth transition
+      utterance.onboundary = (event) => {
+        // When we're near the end of speech, prepare recognition
+        if (event.charIndex > 0 && event.charIndex > (utterance.text?.length || 0) * 0.8) {
+          // We're 80% through the speech - prepare recognition
+          if (!isMuted && state !== "error" && !recognitionRef.current) {
+            const recognition = initWebSpeechRecognition()
+            if (recognition) {
+              recognitionRef.current = recognition
+            }
+          }
         }
       }
 
@@ -327,8 +356,8 @@ export function useOpenAIVoiceInterview({
             }
           }
           
-          // Start listening with a small delay to ensure speech has fully ended
-          setTimeout(startListening, 300)
+          // Start listening quickly after speech ends for smoother transition
+          setTimeout(startListening, 100) // Further reduced from 150ms for ultra-smooth transition
         }
       }
 
@@ -361,8 +390,8 @@ export function useOpenAIVoiceInterview({
       try {
         // Cancel any pending speech first
         window.speechSynthesis.cancel()
-        // Small delay to ensure cancel is processed
-        await new Promise(resolve => setTimeout(resolve, 100))
+        // Minimal delay for faster speech start
+        await new Promise(resolve => setTimeout(resolve, 50)) // Reduced from 100ms
         
         // Now speak - this MUST happen
         console.log("Calling speechSynthesis.speak()...")
@@ -445,9 +474,20 @@ export function useOpenAIVoiceInterview({
 
     const recognition = new SpeechRecognition()
     recognition.continuous = true
-    recognition.interimResults = true // Enable interim results for better feedback
+    recognition.interimResults = true // Enable interim results for real-time feedback
     recognition.lang = "en-US"
     recognition.maxAlternatives = 1
+    
+    // Optimize recognition settings for faster, more accurate results
+    // Some browsers support these additional settings
+    try {
+      // @ts-ignore - not all browsers support these
+      recognition.serviceURI = undefined
+      // @ts-ignore
+      recognition.grammars = undefined
+    } catch {
+      // Ignore if not supported
+    }
     // Note: serviceURI and grammars are not widely supported, so we don't set them
 
     recognition.onresult = async (event: SpeechRecognitionEvent) => {
@@ -500,9 +540,9 @@ export function useOpenAIVoiceInterview({
         // Ignore if already stopped
       }
       
-      // Add a small delay to ensure user has finished speaking
-      // This helps capture complete sentences
-      await new Promise(resolve => setTimeout(resolve, 200))
+      // Minimal delay - recognition already captured the final result
+      // No need for long delay since we're using final results
+      await new Promise(resolve => setTimeout(resolve, 50)) // Reduced from 200ms
 
       // Process the transcript
       const userMessage: VoiceInterviewMessage = {
@@ -581,16 +621,37 @@ export function useOpenAIVoiceInterview({
             return updated
           })
 
-          // Speak the response
+          // Speak the response immediately for smoother flow
           await speak(aiResponse)
           
           // Reset processing flag after speaking starts
           isProcessingRef.current = false
         } catch (err: unknown) {
           console.error("AI response generation error:", err)
-          setError(`Error: ${err instanceof Error ? err.message : "Unknown error"}`)
-          setState("error")
+          // Don't break the flow - try to continue listening
           isProcessingRef.current = false
+          
+          // Show error but allow recovery
+          const errorMsg = err instanceof Error ? err.message : "Unknown error"
+          console.warn("Error generating response, attempting to continue:", errorMsg)
+          
+          // Try to resume listening instead of stopping completely
+          if (state !== "error" && !isMuted) {
+            setState("listening")
+            setTimeout(() => {
+              if (recognitionRef.current) {
+                try {
+                  recognitionRef.current.start()
+                  console.log("Resumed listening after error")
+                } catch {
+                  // Ignore if already started
+                }
+              }
+            }, 500)
+          } else {
+            setError(`Error: ${errorMsg}. Please try speaking again.`)
+            setState("error")
+          }
         }
     }
 
@@ -628,9 +689,10 @@ export function useOpenAIVoiceInterview({
           }, 1000)
         }
       } else if (errorType === "no-speech") {
-        // No speech detected - this is normal, just restart listening
+        // No speech detected - this is normal, just restart listening quickly
         console.log("No speech detected, continuing to listen...")
-        if (state === "listening" && !isMuted) {
+        if (state === "listening" && !isMuted && !isProcessingRef.current) {
+          // Restart faster for smoother experience
           setTimeout(() => {
             if (recognitionRef.current) {
               try {
@@ -639,7 +701,7 @@ export function useOpenAIVoiceInterview({
                 // Already started
               }
             }
-          }, 500)
+          }, 200) // Reduced from 500ms for faster recovery
         }
       } else if (errorType === "aborted") {
         // Aborted is normal when we stop it manually - ignore
