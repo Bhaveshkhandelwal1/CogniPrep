@@ -47,6 +47,8 @@ export function useOpenAIVoiceInterview({
   const accumulatedTranscriptRef = useRef("") // Accumulate complete speech
   const lastFinalIndexRef = useRef(-1) // Track last processed result index
   const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null) // Timeout for silence detection
+  const lastApiRequestRef = useRef<number>(0) // Track last API request time to throttle requests
+  const pendingRequestRef = useRef<Promise<any> | null>(null) // Track pending request to prevent duplicates
   
   // Detect mobile device for mobile-specific handling
   const isMobileDevice = useRef(false)
@@ -757,8 +759,30 @@ export function useOpenAIVoiceInterview({
 
       setState("processing")
 
-      // Generate AI response
+      // Generate AI response with rate limiting protection
       try {
+          // Throttle API requests to prevent rate limiting
+          // Minimum 1 second between requests (2 seconds on mobile for safety)
+          const minDelay = isMobileDevice.current ? 2000 : 1000
+          const now = Date.now()
+          const timeSinceLastRequest = now - lastApiRequestRef.current
+          
+          if (timeSinceLastRequest < minDelay) {
+            const waitTime = minDelay - timeSinceLastRequest
+            console.log(`⏳ Throttling API request - waiting ${waitTime}ms to prevent rate limiting`)
+            await new Promise(resolve => setTimeout(resolve, waitTime))
+          }
+          
+          // Check if there's already a pending request
+          if (pendingRequestRef.current) {
+            console.log("⏳ Waiting for pending request to complete...")
+            try {
+              await pendingRequestRef.current
+            } catch {
+              // Ignore errors from previous request
+            }
+          }
+          
           const conversationHistory = [
             ...messagesRef.current.map((m) => ({
               role: m.role,
@@ -768,21 +792,30 @@ export function useOpenAIVoiceInterview({
             { role: "user" as const, content: transcript, timestamp: new Date() },
           ]
 
-          const response = await fetch("/api/ai/interview/response", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              messages: conversationHistory.map((msg) => ({
-                role: msg.role,
-                content: msg.content,
-                timestamp: msg.timestamp.toISOString(),
-              })),
-              jobInfo,
-              userName,
-            }),
-          })
+          // Create the request promise and store it
+          const requestPromise = (async () => {
+            lastApiRequestRef.current = Date.now()
+            const response = await fetch("/api/ai/interview/response", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                messages: conversationHistory.map((msg) => ({
+                  role: msg.role,
+                  content: msg.content,
+                  timestamp: msg.timestamp.toISOString(),
+                })),
+                jobInfo,
+                userName,
+              }),
+            })
+            return response
+          })()
+          
+          pendingRequestRef.current = requestPromise
+          const response = await requestPromise
+          pendingRequestRef.current = null
 
           if (!response.ok) {
             let errorMessage = `Failed to generate response: ${response.statusText}`
@@ -792,6 +825,30 @@ export function useOpenAIVoiceInterview({
             } catch {
               // If response is not JSON, use statusText
             }
+            
+            // Handle rate limiting specifically
+            if (response.status === 429 || response.status === 403) {
+              const retryAfter = response.headers.get("Retry-After")
+              const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : 5000
+              console.warn(`⚠ Rate limited - waiting ${waitTime}ms before retry`)
+              setError("Too many requests. Please wait a moment and try speaking again.")
+              setState("listening")
+              isProcessingRef.current = false
+              
+              // Wait and then restart recognition
+              setTimeout(() => {
+                if (recognitionRef.current && state === "listening" && !isMuted) {
+                  try {
+                    recognitionRef.current.start()
+                    console.log("✓ Restarted recognition after rate limit")
+                  } catch {
+                    // Ignore restart errors
+                  }
+                }
+              }, waitTime)
+              return
+            }
+            
             throw new Error(errorMessage)
           }
 
@@ -1168,21 +1225,51 @@ export function useOpenAIVoiceInterview({
               { role: "user" as const, content: transcript, timestamp: new Date() },
             ]
 
-            const response = await fetch("/api/ai/interview/response", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                messages: conversationHistory.map((msg) => ({
-                  role: msg.role,
-                  content: msg.content,
-                  timestamp: msg.timestamp.toISOString(),
-                })),
-                jobInfo,
-                userName,
-              }),
-            })
+            // Throttle API requests to prevent rate limiting
+            const minDelay = isMobileDevice.current ? 2000 : 1000
+            const now = Date.now()
+            const timeSinceLastRequest = now - lastApiRequestRef.current
+            
+            if (timeSinceLastRequest < minDelay) {
+              const waitTime = minDelay - timeSinceLastRequest
+              console.log(`⏳ Throttling API request - waiting ${waitTime}ms to prevent rate limiting`)
+              await new Promise(resolve => setTimeout(resolve, waitTime))
+            }
+            
+            // Check if there's already a pending request
+            if (pendingRequestRef.current) {
+              console.log("⏳ Waiting for pending request to complete...")
+              try {
+                await pendingRequestRef.current
+              } catch {
+                // Ignore errors from previous request
+              }
+            }
+            
+            // Create the request promise and store it
+            const requestPromise = (async () => {
+              lastApiRequestRef.current = Date.now()
+              const response = await fetch("/api/ai/interview/response", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  messages: conversationHistory.map((msg) => ({
+                    role: msg.role,
+                    content: msg.content,
+                    timestamp: msg.timestamp.toISOString(),
+                  })),
+                  jobInfo,
+                  userName,
+                }),
+              })
+              return response
+            })()
+            
+            pendingRequestRef.current = requestPromise
+            const response = await requestPromise
+            pendingRequestRef.current = null
 
             if (!response.ok) {
               let errorMessage = `Failed to generate response: ${response.statusText}`
@@ -1192,6 +1279,27 @@ export function useOpenAIVoiceInterview({
               } catch {
                 // If response is not JSON, use statusText
               }
+              
+              // Handle rate limiting specifically
+              if (response.status === 429 || response.status === 403) {
+                const retryAfter = response.headers.get("Retry-After")
+                const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : 5000
+                console.warn(`⚠ Rate limited - waiting ${waitTime}ms before retry`)
+                setError("Too many requests. Please wait a moment and try speaking again.")
+                setState("listening")
+                
+                // Wait and then restart recording
+                setTimeout(() => {
+                  if (state !== "error" && !isMuted) {
+                    setState("listening")
+                    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "inactive") {
+                      mediaRecorderRef.current.start()
+                    }
+                  }
+                }, waitTime)
+                return
+              }
+              
               throw new Error(errorMessage)
             }
 
