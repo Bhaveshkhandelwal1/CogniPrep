@@ -44,6 +44,9 @@ export function useOpenAIVoiceInterview({
   const useWebRecognitionFallback = useRef(true) // Always use Web Speech Recognition (free, unlimited)
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   const isProcessingRef = useRef(false) // Track if we're processing to avoid duplicate detections
+  const accumulatedTranscriptRef = useRef("") // Accumulate complete speech
+  const lastFinalIndexRef = useRef(-1) // Track last processed result index
+  const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null) // Timeout for silence detection
 
   // Update messagesRef whenever messages state changes
   useEffect(() => {
@@ -535,6 +538,11 @@ export function useOpenAIVoiceInterview({
     }
     // Note: serviceURI and grammars are not widely supported, so we don't set them
 
+    // Track accumulated transcript to capture complete speech
+    let accumulatedTranscript = ""
+    let lastFinalIndex = -1
+    let silenceTimeout: NodeJS.Timeout | null = null
+
     recognition.onresult = async (event: SpeechRecognitionEvent) => {
       // Skip if we're already processing a previous result
       if (isProcessingRef.current) {
@@ -554,26 +562,62 @@ export function useOpenAIVoiceInterview({
         console.log("Interim transcript (listening...):", interimTranscripts)
       }
       
-      // Get the final transcript (last result is usually the final one)
-      const finalResults = results.filter(r => r.isFinal)
+      // Accumulate ALL final results (not just the last one)
+      // This ensures we capture complete sentences even if broken into multiple final results
+      const newFinalResults = results
+        .map((r, index) => ({ result: r, index }))
+        .filter(({ result, index }) => result.isFinal && index > lastFinalIndexRef.current)
       
-      // Only process if we have final results
-      if (finalResults.length === 0) {
-        return
-      }
-      
-      const finalResult = finalResults[finalResults.length - 1]
-      const transcript = finalResult[0].transcript.trim()
+      if (newFinalResults.length > 0) {
+        // Add new final results to accumulated transcript
+        const newTranscripts = newFinalResults
+          .map(({ result }) => result[0].transcript.trim())
+          .filter(t => t.length > 0)
+        
+        if (newTranscripts.length > 0) {
+          accumulatedTranscriptRef.current = (accumulatedTranscriptRef.current + " " + newTranscripts.join(" ")).trim()
+          lastFinalIndexRef.current = newFinalResults[newFinalResults.length - 1].index
+          console.log("Accumulated transcript so far:", accumulatedTranscriptRef.current)
+        }
+        
+        // Clear any existing timeout
+        if (silenceTimeoutRef.current) {
+          clearTimeout(silenceTimeoutRef.current)
+          silenceTimeoutRef.current = null
+        }
+        
+        // Wait for a pause (silence) before processing to ensure we have the complete sentence
+        // This gives the user time to finish speaking
+        silenceTimeoutRef.current = setTimeout(() => {
+          if (isProcessingRef.current || accumulatedTranscriptRef.current.length === 0) {
+            return
+          }
+          
+          const transcript = accumulatedTranscriptRef.current
+          
+          // Only process if we have a meaningful transcript (at least 3 characters)
+          if (transcript.length < 3) {
+            console.log("Transcript too short, ignoring:", transcript)
+            // Reset and continue listening
+            accumulatedTranscriptRef.current = ""
+            lastFinalIndexRef.current = -1
+            return
+          }
 
-      // Only process if we have a meaningful transcript (at least 2 characters)
-      // Reduced from 3 to 2 to catch shorter responses
-      if (transcript.length < 2) {
-        console.log("Transcript too short, ignoring:", transcript)
-        // Continue listening
-        return
+          console.log("Complete final transcript detected:", transcript)
+          
+          // Process the complete transcript
+          processTranscript(transcript)
+          
+          // Reset for next speech
+          accumulatedTranscriptRef.current = ""
+          lastFinalIndexRef.current = -1
+        }, 1500) // Wait 1.5 seconds of silence before processing (user has finished speaking)
       }
-
-      console.log("Final transcript detected:", transcript)
+    }
+    
+    // Helper function to process the complete transcript
+    const processTranscript = async (transcript: string) => {
 
       // Mark as processing to prevent duplicate handling
       isProcessingRef.current = true
@@ -582,9 +626,15 @@ export function useOpenAIVoiceInterview({
       // But we'll restart it after the AI responds
       try {
         recognition.stop()
-        console.log("Stopped recognition to process result")
+        console.log("Stopped recognition to process complete result")
       } catch {
         // Ignore if already stopped
+      }
+      
+      // Clear any pending timeout
+      if (silenceTimeoutRef.current) {
+        clearTimeout(silenceTimeoutRef.current)
+        silenceTimeoutRef.current = null
       }
       
       // Small delay to ensure recognition has stopped
