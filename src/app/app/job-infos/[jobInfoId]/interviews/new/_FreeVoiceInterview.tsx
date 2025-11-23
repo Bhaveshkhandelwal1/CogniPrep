@@ -160,26 +160,38 @@ export function FreeVoiceInterview({
           onDisconnect={handleDisconnect}
           isListening={state === "listening"}
         />
-        {/* Debug panel */}
-        {process.env.NODE_ENV === "development" && (
-          <div className="fixed top-4 right-4 z-50">
-            <button
-              onClick={() => setShowDebug(!showDebug)}
-              className="text-xs bg-muted px-2 py-1 rounded"
-            >
-              {showDebug ? "Hide Debug" : "Show Debug"}
-            </button>
-            {showDebug && (
-              <div className="mt-2 bg-background border rounded p-4 text-xs max-w-xs max-h-64 overflow-auto">
-                <div className="font-bold mb-2">Connection Status:</div>
-                <div>State: {state}</div>
-                <div>Messages: {messages.length}</div>
-                <div>Duration: {callDuration}</div>
-                <div>Interview ID: {interviewId || "None"}</div>
-              </div>
-            )}
-          </div>
-        )}
+        {/* Debug panel - always show on Vercel for debugging */}
+        <div className="fixed top-4 right-4 z-50">
+          <button
+            onClick={() => setShowDebug(!showDebug)}
+            className="text-xs bg-muted px-2 py-1 rounded"
+          >
+            {showDebug ? "Hide Debug" : "Show Debug"}
+          </button>
+          {showDebug && (
+            <div className="mt-2 bg-background border rounded p-4 text-xs max-w-xs max-h-64 overflow-auto">
+              <div className="font-bold mb-2">Connection Status:</div>
+              <div>State: {state}</div>
+              <div>Messages: {messages.length}</div>
+              <div>Duration: {callDuration}s</div>
+              <div>Interview ID: {interviewId || "None"}</div>
+              <div>Is Speaking: {isSpeaking ? "Yes" : "No"}</div>
+              <div>Is Muted: {isMuted ? "Yes" : "No"}</div>
+              <div className="mt-2 font-bold">Browser Support:</div>
+              <div>Speech Synthesis: {typeof window !== "undefined" && "speechSynthesis" in window ? "Yes" : "No"}</div>
+              <div>Speech Recognition: {typeof window !== "undefined" && (
+                (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+              ) ? "Yes" : "No"}</div>
+              <div>Microphone: {typeof navigator !== "undefined" && navigator.mediaDevices ? "Yes" : "No"}</div>
+              {error && (
+                <>
+                  <div className="mt-2 font-bold text-destructive">Error:</div>
+                  <div className="text-destructive">{error}</div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

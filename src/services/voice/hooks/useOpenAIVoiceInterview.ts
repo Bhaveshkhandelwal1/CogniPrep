@@ -242,10 +242,19 @@ export function useOpenAIVoiceInterview({
       utterance.pitch = 1.0
       utterance.volume = 1.0
 
-      utterance.onstart = () => {
-        console.log("Speech started")
+      utterance.onstart = (event) => {
+        console.log("Speech started event fired", event)
         setIsSpeaking(true)
         setState("speaking")
+      }
+      
+      // Also check if speech is actually speaking (some browsers don't fire onstart)
+      utterance.onboundary = () => {
+        if (!isSpeaking) {
+          console.log("Speech boundary detected, updating state")
+          setIsSpeaking(true)
+          setState("speaking")
+        }
       }
 
       utterance.onend = () => {
@@ -343,7 +352,58 @@ export function useOpenAIVoiceInterview({
 
       currentUtteranceRef.current = utterance
       console.log("Speaking text:", text.substring(0, 50) + "...")
-      window.speechSynthesis.speak(utterance)
+      
+      // Force speech to start - some browsers need this
+      try {
+        // Cancel any pending speech first
+        window.speechSynthesis.cancel()
+        // Small delay to ensure cancel is processed
+        await new Promise(resolve => setTimeout(resolve, 50))
+        // Now speak
+        window.speechSynthesis.speak(utterance)
+        
+        // Verify speech actually started
+        let speechStarted = false
+        const checkInterval = setInterval(() => {
+          if (window.speechSynthesis.speaking) {
+            speechStarted = true
+            clearInterval(checkInterval)
+            if (!isSpeaking) {
+              console.log("Speech started (verified via speaking check)")
+              setIsSpeaking(true)
+              setState("speaking")
+            }
+          }
+        }, 50)
+        
+        // Stop checking after 1 second
+        setTimeout(() => {
+          clearInterval(checkInterval)
+          if (!speechStarted && !window.speechSynthesis.speaking) {
+            console.error("Speech did not start after 1 second")
+            // Try to speak again
+            try {
+              window.speechSynthesis.cancel()
+              await new Promise(resolve => setTimeout(resolve, 100))
+              window.speechSynthesis.speak(utterance)
+              console.log("Retried speaking")
+            } catch (retryError) {
+              console.error("Retry failed:", retryError)
+              setIsSpeaking(false)
+              setError("Failed to start speech. Please try refreshing the page.")
+              setState("error")
+              if (onEnd) onEnd()
+            }
+          }
+        }, 1000)
+      } catch (speakError) {
+        console.error("Error calling speechSynthesis.speak:", speakError)
+        setIsSpeaking(false)
+        setError(`Failed to speak: ${speakError instanceof Error ? speakError.message : "Unknown error"}`)
+        setState("error")
+        if (onEnd) onEnd()
+        return
+      }
     } catch (error) {
       console.error("Error in speakWithWebSpeech:", error)
       setIsSpeaking(false)
@@ -905,6 +965,36 @@ export function useOpenAIVoiceInterview({
     }
   }, [])
 
+  // Test browser compatibility
+  const testBrowserCompatibility = useCallback(() => {
+    const issues: string[] = []
+    
+    if (typeof window === "undefined") {
+      issues.push("Window object not available")
+      return issues
+    }
+    
+    if (!("speechSynthesis" in window)) {
+      issues.push("Speech synthesis not supported")
+    } else if (!window.speechSynthesis) {
+      issues.push("Speech synthesis not available")
+    }
+    
+    const SpeechRecognition = 
+      (window as unknown as { SpeechRecognition?: new () => SpeechRecognition }).SpeechRecognition || 
+      (window as unknown as { webkitSpeechRecognition?: new () => SpeechRecognition }).webkitSpeechRecognition
+    
+    if (!SpeechRecognition) {
+      issues.push("Speech recognition not supported - please use Chrome, Edge, or Safari")
+    }
+    
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      issues.push("Microphone access not available")
+    }
+    
+    return issues
+  }, [])
+
   // Start the interview
   const start = useCallback(async () => {
     try {
@@ -913,6 +1003,15 @@ export function useOpenAIVoiceInterview({
       setMessages([])
       setCallDuration(0)
       startTimeRef.current = new Date()
+
+      // Test browser compatibility first
+      const compatibilityIssues = testBrowserCompatibility()
+      if (compatibilityIssues.length > 0) {
+        console.error("Browser compatibility issues:", compatibilityIssues)
+        setError(`Browser compatibility issues: ${compatibilityIssues.join(", ")}. Please use Chrome, Edge, or Safari.`)
+        setState("error")
+        return
+      }
 
       // Request microphone permission
       try {
@@ -1042,7 +1141,32 @@ export function useOpenAIVoiceInterview({
                     console.log("Starting recognition after initial greeting...")
                     setState("listening")
                     recognitionRef.current.start()
-                    console.log("Recognition started successfully")
+                    console.log("Recognition start() called")
+                    
+                    // Verify recognition actually started
+                    setTimeout(() => {
+                      try {
+                        const recognition = recognitionRef.current as SpeechRecognition & { state?: string }
+                        const isListening = recognition.state === "listening" || recognition.state === "starting"
+                        if (!isListening && recognition.state !== "listening") {
+                          console.warn("Recognition state check failed, attempting restart...")
+                          try {
+                            recognitionRef.current.stop()
+                            setTimeout(() => {
+                              recognitionRef.current?.start()
+                              console.log("Recognition restarted")
+                            }, 200)
+                          } catch (restartError) {
+                            console.error("Failed to restart recognition:", restartError)
+                          }
+                        } else {
+                          console.log("Recognition verified as listening")
+                        }
+                      } catch (stateCheckError) {
+                        // State property might not be available, that's okay
+                        console.log("Could not check recognition state (property not available)")
+                      }
+                    }, 500)
                   } catch (e: unknown) {
                     console.warn("Failed to start recognition after initial greeting:", e)
                     // Retry after a short delay
@@ -1089,7 +1213,7 @@ export function useOpenAIVoiceInterview({
       setState("error")
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobInfo, userName, onMessage, speak, initWebSpeechRecognition])
+  }, [jobInfo, userName, onMessage, speak, initWebSpeechRecognition, testBrowserCompatibility])
 
   // Stop the interview
   const stop = useCallback(() => {
