@@ -31,35 +31,10 @@ const aj = arcjetKey ? arcjet({
   ],
 }) : null
 
-// Higher rate limit for interview API routes (they need more requests during active interviews)
-const ajInterview = arcjetKey ? arcjet({
-  key: arcjetKey,
-  rules: [
-    shield({ 
-      mode: process.env.NODE_ENV === "production" ? "LIVE" : "DRY_RUN",
-    }),
-    detectBot({
-      mode: process.env.NODE_ENV === "production" ? "LIVE" : "DRY_RUN",
-      allow: ["CATEGORY:SEARCH_ENGINE", "CATEGORY:MONITOR", "CATEGORY:PREVIEW"],
-    }),
-    slidingWindow({
-      mode: process.env.NODE_ENV === "production" ? "LIVE" : "DRY_RUN",
-      interval: "1m",
-      max: 300, // Higher limit for interview routes (3x normal)
-    }),
-  ],
-}) : null
-
 const isPublicRoute = createRouteMatcher([
   "/sign-in(.*)",
   "/",
   "/api/webhooks(.*)",
-])
-
-// Interview API routes that need higher rate limits
-const isInterviewApiRoute = createRouteMatcher([
-  "/api/ai/interview(.*)",
-  "/api/voice/(tts|transcribe)(.*)",
 ])
 
 // Fallback middleware when Clerk is not configured
@@ -86,30 +61,14 @@ const fallbackMiddleware: NextMiddleware = async (req) => {
 // This allows auth() to work when keys are present
 export default clerkMiddleware(async (auth, req) => {
   try {
-    // Use higher rate limit for interview API routes
-    const arcjetInstance = isInterviewApiRoute(req) ? ajInterview : aj
-    
     // Only run Arcjet protection if it's initialized
-    if (arcjetInstance) {
-      const decision = await arcjetInstance.protect(req)
+    if (aj) {
+  const decision = await aj.protect(req)
 
-      if (decision.isDenied()) {
-        // Return a more descriptive error for rate limiting
-        return new NextResponse(
-          JSON.stringify({ 
-            error: "Rate limit exceeded. Please wait a moment and try again.",
-            retryAfter: 60 
-          }),
-          { 
-            status: 429,
-            headers: {
-              "Content-Type": "application/json",
-              "Retry-After": "60"
-            }
-          }
-        )
+  if (decision.isDenied()) {
+        return new NextResponse(null, { status: 403 })
       }
-    }
+  }
 
     // Only protect routes if Clerk is properly configured
     // If Clerk is not configured, auth.protect() will fail, so we skip it
