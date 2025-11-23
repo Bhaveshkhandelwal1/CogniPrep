@@ -335,6 +335,33 @@ export function useOpenAIVoiceInterview({
                 const attemptStart = (attempt = 1) => {
                   try {
                     console.log(`📱 Starting recognition (attempt ${attempt}/${maxAttempts})... (mobile: ${isMobileDevice.current})`)
+                    
+                    // On mobile, ensure stream is still active before starting recognition
+                    if (isMobileDevice.current && streamRef.current) {
+                      const audioTracks = streamRef.current.getAudioTracks()
+                      const activeTracks = audioTracks.filter(t => t.readyState === 'live')
+                      if (activeTracks.length === 0) {
+                        console.warn("⚠ No active audio tracks, microphone may have been released")
+                        // Try to re-request permission
+                        if (attempt === 1) {
+                          navigator.mediaDevices.getUserMedia({ audio: true })
+                            .then(stream => {
+                              streamRef.current = stream
+                              console.log("✓ Re-acquired microphone stream")
+                              setTimeout(() => attemptStart(attempt), 200)
+                            })
+                            .catch(err => {
+                              console.error("Failed to re-acquire microphone:", err)
+                              setError("Microphone access was lost. Please refresh and try again.")
+                              setState("error")
+                            })
+                          return
+                        }
+                      } else {
+                        console.log(`✓ Found ${activeTracks.length} active audio track(s)`)
+                      }
+                    }
+                    
                     recognitionRef.current!.start()
                     console.log("✓ Recognition start() called successfully")
                     
@@ -1259,28 +1286,71 @@ export function useOpenAIVoiceInterview({
       }
 
       // Request microphone permission - MUST be done in user interaction context
-      console.log("Requesting microphone permission...")
+      // On mobile, this is critical and must happen before recognition starts
+      console.log("📱 Requesting microphone permission... (mobile:", isMobileDevice.current, ")")
+      
+      // Check if permission is already granted
+      let permissionGranted = false
       try {
-        // Request with explicit error handling
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
-          } 
-        })
+        const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName })
+        console.log("Current microphone permission status:", permissionStatus.state)
+        if (permissionStatus.state === 'granted') {
+          permissionGranted = true
+          console.log("✓ Microphone permission already granted")
+        }
+      } catch (permError) {
+        // Permissions API might not be supported, that's okay
+        console.log("Permissions API not available, will request directly")
+      }
+      
+      // Request microphone access explicitly
+      try {
+        // On mobile, use simpler audio constraints for better compatibility
+        const audioConstraints = isMobileDevice.current 
+          ? { audio: true } // Simpler for mobile
+          : { 
+              audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+              } 
+            }
+        
+        console.log("Requesting getUserMedia with constraints:", audioConstraints)
+        const stream = await navigator.mediaDevices.getUserMedia(audioConstraints)
         streamRef.current = stream
-        console.log("✓ Microphone access granted")
+        console.log("✓ Microphone access granted, stream active:", stream.active)
+        
+        // Verify stream has audio tracks
+        const audioTracks = stream.getAudioTracks()
+        if (audioTracks.length === 0) {
+          throw new Error("No audio tracks in stream")
+        }
+        console.log(`✓ Found ${audioTracks.length} audio track(s)`)
         
         // Keep stream active to maintain permission
         // Don't stop tracks here - we need them for recognition
+        // On mobile, keeping the stream active is especially important
+        audioTracks.forEach(track => {
+          console.log("Audio track:", track.label, "enabled:", track.enabled, "readyState:", track.readyState)
+        })
       } catch (error: any) {
         console.error("✗ Microphone access denied:", error)
+        console.error("Error details:", {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        })
+        
         let errorMessage = "Microphone access denied. "
         if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
-          errorMessage += "Please click 'Allow' when prompted, or enable microphone access in your browser settings."
+          errorMessage += isMobileDevice.current 
+            ? "Please tap 'Allow' when your browser asks for microphone permission. You may need to check your browser settings if the prompt doesn't appear."
+            : "Please click 'Allow' when prompted, or enable microphone access in your browser settings."
         } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
           errorMessage += "No microphone found. Please connect a microphone and try again."
+        } else if (error.name === "NotReadableError" || error.name === "TrackStartError") {
+          errorMessage += "Microphone is being used by another application. Please close other apps using the microphone and try again."
         } else {
           errorMessage += `Error: ${error.message || error.name || "Unknown error"}. Please try again.`
         }
@@ -1290,13 +1360,37 @@ export function useOpenAIVoiceInterview({
       }
 
       // Pre-initialize speech recognition early (before speaking) to ensure it's ready
+      // On mobile, this is especially important as recognition may need permission too
       if (useWebRecognitionFallback.current) {
-        console.log("Pre-initializing speech recognition...")
+        console.log("Pre-initializing speech recognition... (mobile:", isMobileDevice.current, ")")
         if (!recognitionRef.current) {
           const recognition = initWebSpeechRecognition()
           if (recognition) {
             recognitionRef.current = recognition
-            console.log("Speech recognition pre-initialized successfully")
+            console.log("✓ Speech recognition pre-initialized successfully")
+            
+            // On mobile, try a test start/stop to ensure permission is granted
+            // This helps trigger any additional permission prompts
+            if (isMobileDevice.current) {
+              console.log("📱 Testing recognition on mobile to verify permission...")
+              try {
+                // Try to start recognition briefly to trigger permission if needed
+                recognition.start()
+                // Stop immediately - we just want to trigger permission
+                setTimeout(() => {
+                  try {
+                    recognition.stop()
+                    console.log("✓ Mobile recognition permission verified")
+                  } catch {
+                    // Already stopped or error, that's okay
+                  }
+                }, 100)
+              } catch (testError: any) {
+                console.warn("Mobile recognition test error (may be normal):", testError)
+                // Don't fail here - the error might be because it's already running or permission is pending
+                // We'll handle actual permission errors when we start for real
+              }
+            }
           } else {
             console.error("Failed to pre-initialize speech recognition")
             setError("Speech recognition is not available. Please use Chrome, Edge, or Safari.")
