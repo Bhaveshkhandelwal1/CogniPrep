@@ -37,26 +37,6 @@ const isPublicRoute = createRouteMatcher([
   "/api/webhooks(.*)",
 ])
 
-// Fallback middleware when Clerk is not configured
-const fallbackMiddleware: NextMiddleware = async (req) => {
-  try {
-    // Only run Arcjet protection if it's initialized
-    if (aj) {
-      const decision = await aj.protect(req)
-
-      if (decision.isDenied()) {
-        return new NextResponse(null, { status: 403 })
-      }
-    }
-
-    // Allow all requests when Clerk is not configured
-    return NextResponse.next()
-  } catch (error) {
-    console.error("Middleware error:", error)
-    return NextResponse.next()
-  }
-}
-
 // Create middleware - always use clerkMiddleware so Clerk can detect it
 // This allows auth() to work when keys are present
 export default clerkMiddleware(async (auth, req) => {

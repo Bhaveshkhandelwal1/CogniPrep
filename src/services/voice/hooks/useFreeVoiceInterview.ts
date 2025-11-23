@@ -228,8 +228,8 @@ export function useFreeVoiceInterview({
     }
 
     return recognition
+    // Note: speak is intentionally excluded to avoid circular dependency
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    // speak is defined later, but adding it would cause a circular dependency
   }, [state, isMuted, messages, jobInfo, userName, onMessage])
 
   // Speak text using Web Speech API

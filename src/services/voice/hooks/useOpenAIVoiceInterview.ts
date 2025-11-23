@@ -48,12 +48,12 @@ export function useOpenAIVoiceInterview({
   const lastFinalIndexRef = useRef(-1) // Track last processed result index
   const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null) // Timeout for silence detection
   const lastApiRequestRef = useRef<number>(0) // Track last API request time to throttle requests
-  const pendingRequestRef = useRef<Promise<any> | null>(null) // Track pending request to prevent duplicates
+  const pendingRequestRef = useRef<Promise<Response> | null>(null) // Track pending request to prevent duplicates
   
   // Detect mobile device for mobile-specific handling
   const isMobileDevice = useRef(false)
   if (typeof window !== "undefined" && !isMobileDevice.current) {
-    const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera
+    const userAgent = navigator.userAgent || navigator.vendor || (window as { opera?: string }).opera || ""
     isMobileDevice.current = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase())
     if (isMobileDevice.current) {
       console.log("📱 Mobile device detected - using mobile-optimized settings")
@@ -175,9 +175,7 @@ export function useOpenAIVoiceInterview({
       setError(`Failed to speak: ${err instanceof Error ? err.message : "Unknown error"}`)
       setState("error")
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    // speakWithWebSpeech is defined later, but it's stable (useCallback)
-  }, [state, isMuted])
+  }, [state, isMuted, speakWithWebSpeech])
 
   // Fallback: Speak using Web Speech API (completely free, no API limits)
   // Helper function to wait for voices to load
@@ -594,8 +592,8 @@ export function useOpenAIVoiceInterview({
       setState("error")
       if (onEnd) onEnd()
     }
+    // Note: initWebSpeechRecognition and isSpeaking are intentionally excluded to avoid circular dependencies
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    // initWebSpeechRecognition uses speak, creating a circular dependency if included
   }, [state, isMuted, waitForVoices])
 
   // Initialize Web Speech Recognition (fallback when OpenAI fails)
@@ -627,9 +625,9 @@ export function useOpenAIVoiceInterview({
     // Optimize recognition settings for faster, more accurate results
     // Some browsers support these additional settings
     try {
-      // @ts-ignore - not all browsers support these
+      // @ts-expect-error - not all browsers support these
       recognition.serviceURI = undefined
-      // @ts-ignore
+      // @ts-expect-error - not all browsers support these
       recognition.grammars = undefined
     } catch {
       // Ignore if not supported
@@ -1347,7 +1345,6 @@ export function useOpenAIVoiceInterview({
       setError("Failed to access microphone. Please allow microphone access.")
       setState("error")
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMuted, state, useWebRecognitionFallback, initWebSpeechRecognition])
 
   // Initialize audio element for playback
@@ -1487,25 +1484,26 @@ export function useOpenAIVoiceInterview({
         audioTracks.forEach(track => {
           console.log("Audio track:", track.label, "enabled:", track.enabled, "readyState:", track.readyState)
         })
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const err = error as { name?: string; message?: string; stack?: string }
         console.error("✗ Microphone access denied:", error)
         console.error("Error details:", {
-          name: error.name,
-          message: error.message,
-          stack: error.stack
+          name: err.name,
+          message: err.message,
+          stack: err.stack
         })
         
         let errorMessage = "Microphone access denied. "
-        if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
+        if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
           errorMessage += isMobileDevice.current 
             ? "Please tap 'Allow' when your browser asks for microphone permission. You may need to check your browser settings if the prompt doesn't appear."
             : "Please click 'Allow' when prompted, or enable microphone access in your browser settings."
-        } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
+        } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
           errorMessage += "No microphone found. Please connect a microphone and try again."
-        } else if (error.name === "NotReadableError" || error.name === "TrackStartError") {
+        } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
           errorMessage += "Microphone is being used by another application. Please close other apps using the microphone and try again."
         } else {
-          errorMessage += `Error: ${error.message || error.name || "Unknown error"}. Please try again.`
+          errorMessage += `Error: ${err.message || err.name || "Unknown error"}. Please try again.`
         }
         setError(errorMessage)
         setState("error")
@@ -1538,7 +1536,7 @@ export function useOpenAIVoiceInterview({
                     // Already stopped or error, that's okay
                   }
                 }, 100)
-              } catch (testError: any) {
+              } catch (testError: unknown) {
                 console.warn("Mobile recognition test error (may be normal):", testError)
                 // Don't fail here - the error might be because it's already running or permission is pending
                 // We'll handle actual permission errors when we start for real
@@ -1668,7 +1666,6 @@ export function useOpenAIVoiceInterview({
       setError(`Failed to start interview: ${err instanceof Error ? err.message : "Unknown error"}`)
       setState("error")
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobInfo, userName, onMessage, speak, initWebSpeechRecognition, testBrowserCompatibility])
 
   // Stop the interview
