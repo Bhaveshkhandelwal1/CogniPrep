@@ -274,20 +274,6 @@ export function useOpenAIVoiceInterview({
         }
       }
 
-      // Pre-start recognition slightly before speech ends for ultra-smooth transition
-      utterance.onboundary = (event) => {
-        // When we're near the end of speech, prepare recognition
-        if (event.charIndex > 0 && event.charIndex > (utterance.text?.length || 0) * 0.8) {
-          // We're 80% through the speech - prepare recognition
-          if (!isMuted && state !== "error" && !recognitionRef.current) {
-            const recognition = initWebSpeechRecognition()
-            if (recognition) {
-              recognitionRef.current = recognition
-            }
-          }
-        }
-      }
-
       utterance.onend = () => {
         console.log("✓ Speech ended event fired")
         setIsSpeaking(false)
