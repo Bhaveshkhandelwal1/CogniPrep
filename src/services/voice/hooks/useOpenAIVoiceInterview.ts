@@ -342,8 +342,8 @@ export function useOpenAIVoiceInterview({
             }
           }
           
-          // Start listening quickly after speech ends for smoother transition
-          setTimeout(startListening, 100) // Further reduced from 150ms for ultra-smooth transition
+          // Start listening after speech ends - need enough time for recognition to be ready
+          setTimeout(startListening, 300) // Increased to ensure recognition is ready
         }
       }
 
@@ -549,15 +549,16 @@ export function useOpenAIVoiceInterview({
       isProcessingRef.current = true
       
       // Stop recognition while processing to avoid duplicate detections
+      // But we'll restart it after the AI responds
       try {
         recognition.stop()
+        console.log("Stopped recognition to process result")
       } catch {
         // Ignore if already stopped
       }
       
-      // Minimal delay - recognition already captured the final result
-      // No need for long delay since we're using final results
-      await new Promise(resolve => setTimeout(resolve, 50)) // Reduced from 200ms
+      // Small delay to ensure recognition has stopped
+      await new Promise(resolve => setTimeout(resolve, 100))
 
       // Process the transcript
       const userMessage: VoiceInterviewMessage = {
@@ -641,6 +642,9 @@ export function useOpenAIVoiceInterview({
           
           // Reset processing flag after speaking starts
           isProcessingRef.current = false
+          
+          // Ensure recognition restarts after speaking (speak's onend will handle this, but add backup)
+          // The speak function's onend handler will start recognition automatically
         } catch (err: unknown) {
           console.error("AI response generation error:", err)
           // Don't break the flow - try to continue listening
