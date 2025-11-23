@@ -538,10 +538,13 @@ export function useOpenAIVoiceInterview({
     }
     // Note: serviceURI and grammars are not widely supported, so we don't set them
 
-    // Track accumulated transcript to capture complete speech
-    let accumulatedTranscript = ""
-    let lastFinalIndex = -1
-    let silenceTimeout: NodeJS.Timeout | null = null
+    // Reset accumulation when creating new recognition instance
+    accumulatedTranscriptRef.current = ""
+    lastFinalIndexRef.current = -1
+    if (silenceTimeoutRef.current) {
+      clearTimeout(silenceTimeoutRef.current)
+      silenceTimeoutRef.current = null
+    }
 
     recognition.onresult = async (event: SpeechRecognitionEvent) => {
       // Skip if we're already processing a previous result
