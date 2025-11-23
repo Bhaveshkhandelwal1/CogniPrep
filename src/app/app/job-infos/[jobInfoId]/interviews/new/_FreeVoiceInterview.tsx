@@ -56,6 +56,26 @@ export function FreeVoiceInterview({
   // Create interview when starting
   const handleStart = async () => {
     try {
+      // On mobile, explicitly request microphone permission first
+      // This ensures the permission prompt appears before we try to start recognition
+      if (typeof navigator !== "undefined" && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        try {
+          console.log("Requesting microphone permission before starting interview...")
+          // Request permission explicitly - this will show the prompt on mobile
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+          // Stop the test stream immediately - we just wanted to trigger the permission prompt
+          stream.getTracks().forEach(track => track.stop())
+          console.log("✓ Microphone permission granted")
+        } catch (permError: any) {
+          console.error("Microphone permission error:", permError)
+          if (permError.name === "NotAllowedError" || permError.name === "PermissionDeniedError") {
+            errorToast("Microphone permission denied. Please allow microphone access and try again.")
+            return
+          }
+          // For other errors, continue - the start() function will handle them
+        }
+      }
+      
       const res = await createInterview({ jobInfoId: jobInfo.id })
       if (res.error) {
         return errorToast(res.message)
