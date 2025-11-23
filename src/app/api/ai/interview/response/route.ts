@@ -19,39 +19,48 @@ const schema = z.object({
 })
 
 export async function POST(req: Request) {
-  const { userId } = await getCurrentUser()
-  if (userId == null) {
-    return new Response("You are not logged in", { status: 401 })
-  }
-
-  const body = await req.json()
-  const result = schema.safeParse(body)
-
-  if (!result.success) {
-    return new Response("Invalid request body", { status: 400 })
-  }
-
-  const { messages, jobInfo, userName } = result.data
-
   try {
-    const response = await generateInterviewResponse({
-      messages: messages.map(msg => ({
-        role: msg.role,
-        content: msg.content,
-        timestamp: new Date(msg.timestamp),
-      })),
-      jobInfo,
-      userName,
-    })
+    const { userId } = await getCurrentUser()
+    if (userId == null) {
+      return new Response("You are not logged in", { status: 401 })
+    }
 
-    return Response.json({ response })
+    const body = await req.json()
+    const result = schema.safeParse(body)
+
+    if (!result.success) {
+      return new Response("Invalid request body", { status: 400 })
+    }
+
+    const { messages, jobInfo, userName } = result.data
+
+    try {
+      const response = await generateInterviewResponse({
+        messages: messages.map(msg => ({
+          role: msg.role,
+          content: msg.content,
+          timestamp: new Date(msg.timestamp),
+        })),
+        jobInfo,
+        userName,
+      })
+
+      return Response.json({ response })
+    } catch (error) {
+      console.error("Failed to generate interview response:", error)
+      const errorMessage = error instanceof Error ? error.message : "Failed to generate response"
+      const errorDetails = error instanceof Error ? error.stack : String(error)
+      console.error("Error details:", errorDetails)
+      return Response.json(
+        { error: errorMessage, details: process.env.NODE_ENV === "development" ? errorDetails : undefined },
+        { status: 500 }
+      )
+    }
   } catch (error) {
-    console.error("Failed to generate interview response:", error)
-    const errorMessage = error instanceof Error ? error.message : "Failed to generate response"
-    const errorDetails = error instanceof Error ? error.stack : String(error)
-    console.error("Error details:", errorDetails)
+    // Handle middleware rate limit errors
+    console.error("Request error:", error)
     return Response.json(
-      { error: errorMessage, details: process.env.NODE_ENV === "development" ? errorDetails : undefined },
+      { error: "Request failed. Please try again." },
       { status: 500 }
     )
   }

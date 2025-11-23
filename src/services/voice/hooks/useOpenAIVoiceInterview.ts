@@ -1594,9 +1594,6 @@ export function useOpenAIVoiceInterview({
       // Generate and speak initial greeting
       try {
         console.log("Generating initial greeting...")
-        
-        // Throttle initial request too (though this is the first one, it's good practice)
-        lastApiRequestRef.current = Date.now()
         const response = await fetch("/api/ai/interview/response", {
           method: "POST",
           headers: {
@@ -1618,12 +1615,12 @@ export function useOpenAIVoiceInterview({
             // If response is not JSON, use statusText
           }
           
-          // Handle rate limiting for initial greeting
+          // Handle rate limiting specifically for initial greeting
           if (response.status === 429 || response.status === 403) {
             const retryAfter = response.headers.get("Retry-After")
-            const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : 5000
+            const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : 10000
             console.warn(`⚠ Rate limited on initial greeting - waiting ${waitTime}ms`)
-            setError("Too many requests. Please wait a moment and try again.")
+            setError("Too many requests. Please wait a moment and try starting the interview again.")
             setState("error")
             return
           }
