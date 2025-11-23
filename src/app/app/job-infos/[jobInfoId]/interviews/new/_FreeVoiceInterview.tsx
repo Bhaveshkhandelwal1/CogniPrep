@@ -113,9 +113,47 @@ export function FreeVoiceInterview({
             Note: For best results, please use Chrome, Edge, or Safari and allow microphone access.
           </p>
         </div>
-        <Button size="lg" onClick={handleStart}>
-          Start Interview
-        </Button>
+        <div className="flex flex-col gap-2">
+          <Button size="lg" onClick={handleStart}>
+            Start Interview
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={async () => {
+              // Test speech
+              if (typeof window !== "undefined" && window.speechSynthesis) {
+                const testUtterance = new SpeechSynthesisUtterance("Testing speech synthesis. If you hear this, speech is working.")
+                window.speechSynthesis.speak(testUtterance)
+                alert("Testing speech - you should hear audio. Check console for recognition test.")
+              } else {
+                alert("Speech synthesis not available in this browser")
+              }
+              
+              // Test recognition
+              const SpeechRecognition = 
+                (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+              if (SpeechRecognition) {
+                const recognition = new SpeechRecognition()
+                recognition.continuous = false
+                recognition.interimResults = false
+                recognition.onresult = (e: any) => {
+                  const transcript = e.results[0][0].transcript
+                  alert(`Recognition test successful! You said: "${transcript}"`)
+                }
+                recognition.onerror = (e: any) => {
+                  alert(`Recognition test failed: ${e.error}`)
+                }
+                recognition.start()
+                setTimeout(() => recognition.stop(), 5000)
+              } else {
+                alert("Speech recognition not available in this browser")
+              }
+            }}
+          >
+            Test Speech & Recognition
+          </Button>
+        </div>
       </div>
     )
   }

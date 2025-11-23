@@ -40,8 +40,8 @@ export function useOpenAIVoiceInterview({
   const startTimeRef = useRef<Date | null>(null)
   const messagesRef = useRef<VoiceInterviewMessage[]>([])
   const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null)
-  const useWebSpeechFallback = useRef(true) // Default to Web Speech API (free, unlimited)
-  const useWebRecognitionFallback = useRef(true) // Default to Web Speech Recognition (free, unlimited)
+  const useWebSpeechFallback = useRef(true) // Always use Web Speech API (free, unlimited)
+  const useWebRecognitionFallback = useRef(true) // Always use Web Speech Recognition (free, unlimited)
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   const isProcessingRef = useRef(false) // Track if we're processing to avoid duplicate detections
 
@@ -50,15 +50,17 @@ export function useOpenAIVoiceInterview({
     messagesRef.current = messages
   }, [messages])
 
-  // Speak text using Web Speech API (free, unlimited) with OpenAI TTS as optional premium option
+  // Speak text using Web Speech API (free, unlimited) - always use Web Speech API
   const speak = useCallback(async (text: string, onEnd?: () => void) => {
-    if (!text) return
-
-    // Use Web Speech API by default (completely free, no API keys, no limits)
-    // This ensures the interview always works without quota issues
-    if (useWebSpeechFallback.current) {
-      return speakWithWebSpeech(text, onEnd)
+    if (!text) {
+      console.warn("speak() called with empty text")
+      return
     }
+
+    // Always use Web Speech API (completely free, no API keys, no limits)
+    // This ensures the interview always works without quota issues
+    console.log("Speaking with Web Speech API:", text.substring(0, 50) + "...")
+    return speakWithWebSpeech(text, onEnd)
 
     try {
       setState("speaking")
@@ -258,73 +260,75 @@ export function useOpenAIVoiceInterview({
       }
 
       utterance.onend = () => {
-        console.log("Speech ended")
+        console.log("✓ Speech ended event fired")
         setIsSpeaking(false)
-        if (onEnd) onEnd()
+        
+        // Call onEnd callback first
+        if (onEnd) {
+          try {
+            onEnd()
+          } catch (callbackError) {
+            console.error("Error in onEnd callback:", callbackError)
+          }
+        }
+        
+        // Start listening after speech ends
         if (state !== "error" && !isMuted) {
           // Reset processing flag when speech ends
           isProcessingRef.current = false
           setState("listening")
-          // Start listening after speech ends
-          setTimeout(() => {
+          
+          // Start listening immediately after speech ends
+          const startListening = () => {
             if (useWebRecognitionFallback.current) {
-              // Initialize recognition if not already initialized
+              // Ensure recognition is initialized
               if (!recognitionRef.current) {
-                console.log("Initializing recognition...")
+                console.log("Initializing recognition in onend...")
                 const recognition = initWebSpeechRecognition()
                 if (recognition) {
                   recognitionRef.current = recognition
-                  console.log("Recognition initialized")
+                  console.log("✓ Recognition initialized in onend")
                 } else {
-                  console.error("Failed to initialize recognition")
+                  console.error("✗ Failed to initialize recognition in onend")
                   setError("Speech recognition is not available. Please use Chrome, Edge, or Safari.")
                   setState("error")
                   return
                 }
               }
-              // Start recognition only if not already running
+              
+              // Start recognition
               if (recognitionRef.current) {
-                // Check if recognition is already running by checking its state
-                let isRunning = false
                 try {
-                  const recognition = recognitionRef.current as SpeechRecognition & { state?: string }
-                  isRunning = recognition.state === "listening" || recognition.state === "starting"
-                } catch {
-                  // State property not available, assume not running
-                }
-                
-                if (!isRunning) {
-                  try {
-                    console.log("Starting recognition...")
-                    recognitionRef.current.start()
-                    console.log("Recognition started successfully")
-                  } catch (e: unknown) {
-                    // If already started, that's okay - just log it
-                    if (e instanceof Error && (e.name === "InvalidStateError" || e.message?.includes("already started"))) {
-                      console.log("Recognition already running, continuing...")
-                    } else {
-                      console.error("Recognition start error:", e)
-                      // Try to reinitialize if start fails
-                      try {
-                        const newRecognition = initWebSpeechRecognition()
-                        if (newRecognition) {
-                          recognitionRef.current = newRecognition
-                          recognitionRef.current.start()
-                          console.log("Recognition reinitialized and started")
-                        }
-                      } catch (retryError) {
-                        console.error("Failed to reinitialize recognition:", retryError)
+                  console.log("Starting recognition after speech ended...")
+                  recognitionRef.current.start()
+                  console.log("✓ Recognition start() called successfully")
+                } catch (e: unknown) {
+                  if (e instanceof Error && (e.name === "InvalidStateError" || e.message?.includes("already started"))) {
+                    console.log("Recognition already running (this is okay)")
+                  } else {
+                    console.error("✗ Recognition start error:", e)
+                    // Try to reinitialize and start
+                    try {
+                      console.log("Attempting to reinitialize recognition...")
+                      const newRecognition = initWebSpeechRecognition()
+                      if (newRecognition) {
+                        recognitionRef.current = newRecognition
+                        recognitionRef.current.start()
+                        console.log("✓ Recognition reinitialized and started")
                       }
+                    } catch (retryError) {
+                      console.error("✗ Failed to reinitialize recognition:", retryError)
                     }
                   }
-                } else {
-                  console.log("Recognition already running, skipping start")
                 }
               }
             } else if (mediaRecorderRef.current && mediaRecorderRef.current.state === "inactive") {
               mediaRecorderRef.current.start()
             }
-          }, 800) // Increased delay to ensure speech has fully ended and recognition can start cleanly
+          }
+          
+          // Start listening with a small delay to ensure speech has fully ended
+          setTimeout(startListening, 300)
         }
       }
 
@@ -362,40 +366,31 @@ export function useOpenAIVoiceInterview({
         // Now speak
         window.speechSynthesis.speak(utterance)
         
-        // Verify speech actually started
-        let speechStarted = false
-        const checkInterval = setInterval(() => {
+        // Verify speech actually started - check immediately and after a delay
+        const verifySpeech = () => {
           if (window.speechSynthesis.speaking) {
-            speechStarted = true
-            clearInterval(checkInterval)
+            console.log("✓ Speech is speaking (verified)")
             if (!isSpeaking) {
-              console.log("Speech started (verified via speaking check)")
               setIsSpeaking(true)
               setState("speaking")
             }
+            return true
           }
-        }, 50)
+          return false
+        }
         
-        // Stop checking after 1 second
-        setTimeout(() => {
-          clearInterval(checkInterval)
-          if (!speechStarted && !window.speechSynthesis.speaking) {
-            console.error("Speech did not start after 1 second")
-            // Try to speak again
-            try {
-              window.speechSynthesis.cancel()
-              await new Promise(resolve => setTimeout(resolve, 100))
-              window.speechSynthesis.speak(utterance)
-              console.log("Retried speaking")
-            } catch (retryError) {
-              console.error("Retry failed:", retryError)
-              setIsSpeaking(false)
-              setError("Failed to start speech. Please try refreshing the page.")
-              setState("error")
-              if (onEnd) onEnd()
+        // Check immediately
+        if (!verifySpeech()) {
+          // Check again after a short delay
+          setTimeout(() => {
+            if (!verifySpeech()) {
+              console.warn("Speech may not have started, but continuing...")
+              // Still set speaking state to true to continue flow
+              setIsSpeaking(true)
+              setState("speaking")
             }
-          }
-        }, 1000)
+          }, 200)
+        }
       } catch (speakError) {
         console.error("Error calling speechSynthesis.speak:", speakError)
         setIsSpeaking(false)
@@ -1130,77 +1125,9 @@ export function useOpenAIVoiceInterview({
         // Speak the initial greeting, then start listening
         console.log("Speaking initial greeting...")
         await speak(initialResponse, () => {
-          // After initial greeting is spoken, start listening for user response
-          console.log("Initial greeting spoken, starting to listen...")
-          if (!isMuted && state !== "error") {
-            setTimeout(() => {
-              if (useWebRecognitionFallback.current) {
-                // Recognition should already be initialized, just start it
-                if (recognitionRef.current) {
-                  try {
-                    console.log("Starting recognition after initial greeting...")
-                    setState("listening")
-                    recognitionRef.current.start()
-                    console.log("Recognition start() called")
-                    
-                    // Verify recognition actually started
-                    setTimeout(() => {
-                      try {
-                        const recognition = recognitionRef.current as SpeechRecognition & { state?: string }
-                        const isListening = recognition.state === "listening" || recognition.state === "starting"
-                        if (!isListening && recognition.state !== "listening") {
-                          console.warn("Recognition state check failed, attempting restart...")
-                          try {
-                            recognitionRef.current.stop()
-                            setTimeout(() => {
-                              recognitionRef.current?.start()
-                              console.log("Recognition restarted")
-                            }, 200)
-                          } catch (restartError) {
-                            console.error("Failed to restart recognition:", restartError)
-                          }
-                        } else {
-                          console.log("Recognition verified as listening")
-                        }
-                      } catch (stateCheckError) {
-                        // State property might not be available, that's okay
-                        console.log("Could not check recognition state (property not available)")
-                      }
-                    }, 500)
-                  } catch (e: unknown) {
-                    console.warn("Failed to start recognition after initial greeting:", e)
-                    // Retry after a short delay
-                    setTimeout(() => {
-                      if (recognitionRef.current) {
-                        try {
-                          console.log("Retrying recognition start...")
-                          setState("listening")
-                          recognitionRef.current.start()
-                          console.log("Recognition started on retry")
-                        } catch (e2) {
-                          console.error("Failed to start recognition on retry:", e2)
-                          setError("Failed to start speech recognition. Please refresh and try again.")
-                          setState("error")
-                        }
-                      } else {
-                        console.error("Recognition ref is null on retry")
-                        setError("Speech recognition not available. Please refresh and try again.")
-                        setState("error")
-                      }
-                    }, 1000)
-                  }
-                } else {
-                  console.error("Recognition not initialized")
-                  setError("Speech recognition not initialized. Please refresh and try again.")
-                  setState("error")
-                }
-              } else {
-                // Use MediaRecorder approach
-                console.log("Using MediaRecorder approach")
-                startRecording()
-              }
-            }, 500)
-          }
+          // This callback is called when speech ends
+          // The speak function's onend handler will start recognition
+          console.log("✓ Initial greeting callback fired - recognition should start automatically")
         })
       } catch (err: unknown) {
         console.error("Error generating initial response:", err)
