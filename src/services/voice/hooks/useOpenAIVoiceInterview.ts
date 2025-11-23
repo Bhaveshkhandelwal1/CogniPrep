@@ -798,7 +798,7 @@ export function useOpenAIVoiceInterview({
       }
       
       if (state === "listening" && !isMuted) {
-        console.log("Recognition ended, restarting in 200ms...")
+        console.log("Recognition ended, restarting in 300ms...")
         setTimeout(() => {
           // Double-check conditions before restarting
           if (recognitionRef.current && state === "listening" && !isMuted && !isProcessingRef.current) {
